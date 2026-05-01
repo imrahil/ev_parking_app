@@ -1,6 +1,7 @@
 export type StationRef = {
   id: string
   name: string
+  group?: string
 }
 
 export type Connector = {

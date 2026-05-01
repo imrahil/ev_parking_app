@@ -1,38 +1,35 @@
 [
-  {
-    "id": "dc35802d-6272-e0b8-e433-39d5406998c6",
-    "name": "Besucherparkplatz 1"
-  },
-  {
-    "id": "44ec510b-d056-6e81-44ab-47bfc2227d54",
-    "name": "Besucherparkplatz 2"
-  },
-  {
-    "id": "b263f67f-6ebe-a4f7-689d-348b35fa3af2",
-    "name": "Besucherparkplatz 3"
-  },
-  {
-    "id": "d6d1776f-4d15-f24e-c438-96d2ddd958a5",
-    "name": "Besucherparkplatz 4"
-  },
-  {
-    "id": "dd877baf-5329-8a35-3d63-2a1e94a8cb5b",
-    "name": "Parkhaus 1.OG 03"
-  },
-  {
-    "id": "f8280e83-c0f2-7e59-65db-e1be4d3bba8c",
-    "name": "Parkhaus EG 10"
-  },
-  {
-    "id": "30e817a0-6a06-c9ed-6860-bfed7088086e",
-    "name": "Parkhaus EG 14"
-  },
-  {
-    "id": "0a103776-464d-9561-34be-ff2fd1a0cf2f",
-    "name": "PP Ost Weisshorn 01"
-  },
-  {
-    "id": "b3a8eb51-bec0-fa86-3aca-ce311af9ef13",
-    "name": "PP Ost Weisshorn 02"
-  }
+  { "id": "dc35802d-6272-e0b8-e433-39d5406998c6", "name": "Besucherparkplatz 1", "group": "Besucherplatz" },
+  { "id": "44ec510b-d056-6e81-44ab-47bfc2227d54", "name": "Besucherparkplatz 2", "group": "Besucherplatz" },
+  { "id": "b263f67f-6ebe-a4f7-689d-348b35fa3af2", "name": "Besucherparkplatz 3", "group": "Besucherplatz" },
+  { "id": "d6d1776f-4d15-f24e-c438-96d2ddd958a5", "name": "Besucherparkplatz 4", "group": "Besucherplatz" },
+  { "id": "17499fbf-c374-8608-145b-4a49c6fddb26", "name": "Parkhaus 1.OG 01", "group": "Parkhaus 1.OG" },
+  { "id": "b85cf990-41a9-3faa-6ca4-f18e672d1226", "name": "Parkhaus 1.OG 02", "group": "Parkhaus 1.OG" },
+  { "id": "dd877baf-5329-8a35-3d63-2a1e94a8cb5b", "name": "Parkhaus 1.OG 03", "group": "Parkhaus 1.OG" },
+  { "id": "131f58c7-ac32-c646-488c-843ed3e4fb84", "name": "Parkhaus 1.OG 04", "group": "Parkhaus 1.OG" },
+  { "id": "c5380af2-76cd-8058-4a14-cee2887a0492", "name": "Parkhaus 1.OG 06", "group": "Parkhaus 1.OG" },
+  { "id": "64062d75-a0c5-e147-af5c-11087c900f81", "name": "Parkhaus 1.OG 07", "group": "Parkhaus 1.OG" },
+  { "id": "75731929-523d-05f2-7861-c1b70d445f16", "name": "Parkhaus 1.OG 08", "group": "Parkhaus 1.OG" },
+  { "id": "5368b604-1780-af10-b115-0d6527cb8edc", "name": "Parkhaus 1.OG 09", "group": "Parkhaus 1.OG" },
+  { "id": "31388adb-1796-66a3-e198-34f65f72df73", "name": "Parkhaus 1.OG 10", "group": "Parkhaus 1.OG" },
+  { "id": "142ab7bb-d36a-37df-fb08-9344a1728626", "name": "Parkhaus 1.OG 11", "group": "Parkhaus 1.OG" },
+  { "id": "c676ace6-8fd7-b0f8-b07b-1fc6b565d9cd", "name": "Parkhaus 1.OG 12", "group": "Parkhaus 1.OG" },
+  { "id": "53e44e10-5a01-8738-e14e-b26d0d1688cd", "name": "Parkhaus 1.OG 13", "group": "Parkhaus 1.OG" },
+  { "id": "91d22b88-793f-86a9-42a3-37b3878b8c40", "name": "Parkhaus 1.OG 14", "group": "Parkhaus 1.OG" },
+  { "id": "fe1c4c4b-cbee-cddd-0593-f1bb96cd9605", "name": "Parkhaus EG 01", "group": "Parkhaus EG" },
+  { "id": "8a4d0ee0-a324-1205-7a61-6057d2c30a62", "name": "Parkhaus EG 02", "group": "Parkhaus EG" },
+  { "id": "b24d5acc-1208-a446-b5c7-1e8863d4328c", "name": "Parkhaus EG 03", "group": "Parkhaus EG" },
+  { "id": "d22bcb5b-275f-1edd-f103-01f902d77a2d", "name": "Parkhaus EG 04", "group": "Parkhaus EG" },
+  { "id": "d162db90-7046-104b-0d57-90998fa3ffdb", "name": "Parkhaus EG 05", "group": "Parkhaus EG" },
+  { "id": "de0b185f-9822-a669-66d4-6be52577d5e5", "name": "Parkhaus EG 06", "group": "Parkhaus EG" },
+  { "id": "a22a7850-6d56-10a0-ac5e-1b9a0733ec42", "name": "Parkhaus EG 07", "group": "Parkhaus EG" },
+  { "id": "cbf4376a-2ced-e54a-0a06-b279e307d261", "name": "Parkhaus EG 08", "group": "Parkhaus EG" },
+  { "id": "2b03df3f-6482-5881-2e12-9f00517435b7", "name": "Parkhaus EG 09", "group": "Parkhaus EG" },
+  { "id": "f8280e83-c0f2-7e59-65db-e1be4d3bba8c", "name": "Parkhaus EG 10", "group": "Parkhaus EG" },
+  { "id": "b9e86208-27d5-904f-a145-68f69d422961", "name": "Parkhaus EG 11", "group": "Parkhaus EG" },
+  { "id": "daa1370d-dc70-d1d8-35bc-02e17d9b20d0", "name": "Parkhaus EG 12", "group": "Parkhaus EG" },
+  { "id": "4876bb06-8c3b-3067-b71f-6b2ddff34435", "name": "Parkhaus EG 13", "group": "Parkhaus EG" },
+  { "id": "30e817a0-6a06-c9ed-6860-bfed7088086e", "name": "Parkhaus EG 14", "group": "Parkhaus EG" },
+  { "id": "0a103776-464d-9561-34be-ff2fd1a0cf2f", "name": "PP Ost Weisshorn 01", "group": "Weisshorn" },
+  { "id": "b3a8eb51-bec0-fa86-3aca-ce311af9ef13", "name": "PP Ost Weisshorn 02", "group": "Weisshorn" }
 ]
