@@ -63,6 +63,22 @@ export function App() {
     return { a, o, u }
   }, [filtered])
 
+  const groupStats = useMemo(() => {
+    const stats: Record<string, { free: number; total: number }> = {}
+    for (const g of GROUPS) stats[g] = { free: 0, total: 0 }
+    let allFree = 0
+    for (const v of ordered) {
+      const g = v.ref.group
+      const free = stateToStatus(v.data?.State) === STATUS.AVAILABLE
+      if (free) allFree++
+      if (g && stats[g]) {
+        stats[g].total++
+        if (free) stats[g].free++
+      }
+    }
+    return { stats, all: { free: allFree, total: ordered.length } }
+  }, [ordered])
+
   const toggleGroup = (g: string) => {
     setActiveGroups((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]))
   }
@@ -93,6 +109,7 @@ export function App() {
               active={activeGroups.length === 0}
               onClick={() => setActiveGroups([])}
               label="All"
+              stats={groupStats.all}
             />
             {GROUPS.map((g) => (
               <FilterChip
@@ -100,6 +117,7 @@ export function App() {
                 active={activeGroups.includes(g)}
                 onClick={() => toggleGroup(g)}
                 label={g}
+                stats={groupStats.stats[g]}
               />
             ))}
           </div>
@@ -156,21 +174,34 @@ function FilterChip({
   active,
   onClick,
   label,
+  stats,
 }: {
   active: boolean
   onClick: () => void
   label: string
+  stats?: { free: number; total: number }
 }) {
+  const hasStats = stats && stats.total > 0
+  const badgeColor = active
+    ? 'bg-slate-900/20 text-slate-900'
+    : hasStats && stats.free > 0
+      ? 'bg-emerald-500/20 text-emerald-300'
+      : 'bg-slate-700/60 text-slate-400'
   return (
     <button
       onClick={onClick}
-      className={`rounded-full px-3 py-1 text-xs font-medium ring-1 transition ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1 transition ${
         active
           ? 'bg-cyan-400/90 text-slate-900 ring-cyan-300 shadow'
           : 'bg-slate-800/60 text-slate-300 ring-white/10 hover:ring-white/30 hover:text-white'
       }`}
     >
-      {label}
+      <span>{label}</span>
+      {hasStats && (
+        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${badgeColor}`}>
+          {stats.free}/{stats.total}
+        </span>
+      )}
     </button>
   )
 }
