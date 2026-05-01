@@ -1,0 +1,42 @@
+[
+  {
+    "id": "dc35802d-6272-e0b8-e433-39d5406998c6",
+    "name": "Besucherparkplatz 1"
+  },
+  {
+    "id": "44ec510b-d056-6e81-44ab-47bfc2227d54",
+    "name": "Besucherparkplatz 2"
+  },
+  {
+    "id": "b263f67f-6ebe-a4f7-689d-348b35fa3af2",
+    "name": "Besucherparkplatz 3"
+  },
+  {
+    "id": "d6d1776f-4d15-f24e-c438-96d2ddd958a5",
+    "name": "Besucherparkplatz 4"
+  },
+  {
+    "id": "dd877baf-5329-8a35-3d63-2a1e94a8cb5b",
+    "name": "Parkhaus 1.OG 03"
+  },
+  {
+    "id": "f8280e83-c0f2-7e59-65db-e1be4d3bba8c",
+    "name": "Parkhaus EG 10"
+  },
+  {
+    "id": "30e817a0-6a06-c9ed-6860-bfed7088086e",
+    "name": "Parkhaus EG 14"
+  },
+  {
+    "id": "8b51d59c-2ffa-02af-5a82-1400924d5763",
+    "name": "PH Athene, EG01.003"
+  },
+  {
+    "id": "0a103776-464d-9561-34be-ff2fd1a0cf2f",
+    "name": "PP Ost Weisshorn 01"
+  },
+  {
+    "id": "b3a8eb51-bec0-fa86-3aca-ce311af9ef13",
+    "name": "PP Ost Weisshorn 02"
+  }
+]
