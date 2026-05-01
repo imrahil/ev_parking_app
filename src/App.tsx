@@ -21,6 +21,12 @@ export function App() {
 
   const { refs, refsError, views, lastTick, refreshNow } = useStations(refreshMin * 60_000)
 
+  const [, setNow] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setNow((n) => n + 1), 30_000)
+    return () => clearInterval(id)
+  }, [])
+
   const ordered = useMemo(() => refs.map((r) => views[r.id]).filter(Boolean), [refs, views])
 
   const counts = useMemo(() => {
