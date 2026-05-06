@@ -10,13 +10,3 @@ export const STATE_CODE = {
   AVAILABLE: 1,
   OCCUPIED: 2,
 } as const
-
-export const GROUPS = [
-  'Besucherplatz',
-  'Parkhaus EG',
-  'Parkhaus 1.OG',
-  'Weisshorn',
-  'Aletschhorn'
-] as const
-
-export type Group = (typeof GROUPS)[number]

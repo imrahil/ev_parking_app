@@ -3,7 +3,7 @@ import { useStations } from './useStations'
 import { StationCard } from './StationCard'
 import { SettingsBar } from './SettingsBar'
 import { stateToStatus } from './api'
-import { GROUPS, STATUS } from './consts'
+import { STATUS } from './consts'
 
 const STORAGE_KEY = 'parking-app:refreshMin'
 const FILTER_KEY = 'parking-app:groupFilter'
@@ -14,15 +14,8 @@ function readStoredMin(): number {
   return Number.isFinite(n) && n > 0 ? n : 5
 }
 
-function readStoredFilter(): string[] {
-  try {
-    const raw = localStorage.getItem(FILTER_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : []
-  } catch {
-    return []
-  }
+function readStoredFilter(): string {
+  return localStorage.getItem(FILTER_KEY) ?? ''
 }
 
 export function App() {
@@ -31,10 +24,10 @@ export function App() {
     localStorage.setItem(STORAGE_KEY, String(refreshMin))
   }, [refreshMin])
 
-  const [activeGroups, setActiveGroups] = useState<string[]>(() => readStoredFilter())
+  const [activeGroup, setActiveGroup] = useState<string>(() => readStoredFilter())
   useEffect(() => {
-    localStorage.setItem(FILTER_KEY, JSON.stringify(activeGroups))
-  }, [activeGroups])
+    localStorage.setItem(FILTER_KEY, activeGroup)
+  }, [activeGroup])
 
   const { refs, refsError, views, lastTick, refreshNow } = useStations(refreshMin * 60_000)
 
@@ -46,11 +39,16 @@ export function App() {
 
   const ordered = useMemo(() => refs.map((r) => views[r.id]).filter(Boolean), [refs, views])
 
+  const groups = useMemo(() => {
+    return Array.from(
+      new Set(refs.map((r) => r.group).filter((g): g is string => Boolean(g)))
+    ).sort()
+  }, [refs])
+
   const filtered = useMemo(() => {
-    if (activeGroups.length === 0) return ordered
-    const set = new Set(activeGroups)
-    return ordered.filter((v) => v.ref.group && set.has(v.ref.group))
-  }, [ordered, activeGroups])
+    if (!activeGroup) return ordered
+    return ordered.filter((v) => v.ref.group === activeGroup)
+  }, [ordered, activeGroup])
 
   const counts = useMemo(() => {
     let a = 0, o = 0, u = 0
@@ -65,7 +63,7 @@ export function App() {
 
   const groupStats = useMemo(() => {
     const stats: Record<string, { free: number; total: number }> = {}
-    for (const g of GROUPS) stats[g] = { free: 0, total: 0 }
+    for (const g of groups) stats[g] = { free: 0, total: 0 }
     let allFree = 0
     for (const v of ordered) {
       const g = v.ref.group
@@ -77,10 +75,10 @@ export function App() {
       }
     }
     return { stats, all: { free: allFree, total: ordered.length } }
-  }, [ordered])
+  }, [ordered, groups])
 
   const toggleGroup = (g: string) => {
-    setActiveGroups((prev) => (prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g]))
+    setActiveGroup((prev) => (prev === g ? '' : g))
   }
 
   return (
@@ -106,15 +104,15 @@ export function App() {
 
           <div className="mt-4 flex flex-wrap gap-1.5">
             <FilterChip
-              active={activeGroups.length === 0}
-              onClick={() => setActiveGroups([])}
+              active={!activeGroup}
+              onClick={() => setActiveGroup('')}
               label="All"
               stats={groupStats.all}
             />
-            {GROUPS.map((g) => (
+            {groups.map((g) => (
               <FilterChip
                 key={g}
-                active={activeGroups.includes(g)}
+                active={activeGroup === g}
                 onClick={() => toggleGroup(g)}
                 label={g}
                 stats={groupStats.stats[g]}
