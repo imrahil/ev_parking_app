@@ -32,5 +32,9 @@
   { "id": "4876bb06-8c3b-3067-b71f-6b2ddff34435", "name": "Parkhaus EG 13", "group": "Parkhaus EG" },
   { "id": "30e817a0-6a06-c9ed-6860-bfed7088086e", "name": "Parkhaus EG 14", "group": "Parkhaus EG" },
   { "id": "0a103776-464d-9561-34be-ff2fd1a0cf2f", "name": "PP Ost Weisshorn 01", "group": "Weisshorn" },
-  { "id": "b3a8eb51-bec0-fa86-3aca-ce311af9ef13", "name": "PP Ost Weisshorn 02", "group": "Weisshorn" }
+  { "id": "b3a8eb51-bec0-fa86-3aca-ce311af9ef13", "name": "PP Ost Weisshorn 02", "group": "Weisshorn" },
+  { "id": "375d219b-fdb6-0591-1832-f181df680670", "name": "PP Aletschhorn 01", "group": "Aletschhorn" },
+  { "id": "f0d477af-f0ff-fb1d-4a07-96180bd88d9f", "name": "PP Aletschhorn 02", "group": "Aletschhorn" },
+  { "id": "3ff33933-27ab-761c-24ec-89c4652e0f3e", "name": "PP Aletschhorn 03", "group": "Aletschhorn" },
+  { "id": "40dc7d64-e0e0-a9f7-2d0e-d8ed6ef00d94", "name": "PP Aletschhorn 04", "group": "Aletschhorn" }
 ]
