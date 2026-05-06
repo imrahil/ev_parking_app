@@ -16,6 +16,7 @@ export const GROUPS = [
   'Parkhaus EG',
   'Parkhaus 1.OG',
   'Weisshorn',
+  'Aletschhorn'
 ] as const
 
 export type Group = (typeof GROUPS)[number]
