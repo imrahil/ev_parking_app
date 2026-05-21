@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "update-stations": "node scripts/update-stations.js"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^19.0.0",

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchStation, loadStations } from './api'
-import type { StationRef, StationView } from './types'
+import { fetchStation, loadStations } from '../api'
+import type { StationRef, StationView } from '../types'
 
 export function useStations(refreshMs: number) {
   const [refs, setRefs] = useState<StationRef[]>([])

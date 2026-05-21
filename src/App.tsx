@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useStations } from './useStations'
-import { StationCard } from './StationCard'
-import { SettingsBar } from './SettingsBar'
+import { useStations } from './hooks/useStations'
+import { StationCard } from './components/StationCard'
+import { SettingsBar } from './components/SettingsBar'
 import { stateToStatus } from './api'
-import { STATUS } from './consts'
+import { STATUS, STATUS_STYLES, type Status } from './consts/consts'
 
 const STORAGE_KEY = 'parking-app:refreshMin'
 const FILTER_KEY = 'parking-app:groupFilter'
@@ -20,11 +20,13 @@ function readStoredFilter(): string {
 
 export function App() {
   const [refreshMin, setRefreshMin] = useState<number>(() => readStoredMin())
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, String(refreshMin))
   }, [refreshMin])
 
   const [activeGroup, setActiveGroup] = useState<string>(() => readStoredFilter())
+
   useEffect(() => {
     localStorage.setItem(FILTER_KEY, activeGroup)
   }, [activeGroup])
@@ -32,6 +34,7 @@ export function App() {
   const { refs, refsError, views, lastTick, refreshNow } = useStations(refreshMin * 60_000)
 
   const [, setNow] = useState(0)
+
   useEffect(() => {
     const id = setInterval(() => setNow((n) => n + 1), 30_000)
     return () => clearInterval(id)
@@ -86,9 +89,11 @@ export function App() {
       <header className="sticky top-0 z-10 backdrop-blur bg-slate-950/60 ring-1 ring-white/5">
         <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-400 grid place-items-center text-slate-900 font-black shadow-lg">
-              ⚡
-            </div>
+            <img
+              src="./icons/icon-192.png"
+              alt=""
+              className="h-9 w-9 rounded-xl shadow-lg"
+            />
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold text-white leading-tight">
                 Pilatus EV Chargers
@@ -96,9 +101,9 @@ export function App() {
               <p className="text-xs text-slate-400">Live status overview</p>
             </div>
             <div className="ml-auto hidden sm:flex items-center gap-2 text-xs">
-              <Pill color="emerald" label={`${counts.a} free`} />
-              <Pill color="rose" label={`${counts.o} busy`} />
-              <Pill color="slate" label={`${counts.u} ?`} />
+              <Pill status={STATUS.AVAILABLE} label={`${counts.a} free`} />
+              <Pill status={STATUS.OCCUPIED} label={`${counts.o} busy`} />
+              <Pill status={STATUS.UNKNOWN} label={`${counts.u} ?`} />
             </div>
           </div>
 
@@ -155,14 +160,9 @@ export function App() {
   )
 }
 
-function Pill({ color, label }: { color: 'emerald' | 'rose' | 'slate'; label: string }) {
-  const map = {
-    emerald: 'bg-emerald-500/20 text-emerald-300 ring-emerald-400/40',
-    rose: 'bg-rose-500/20 text-rose-300 ring-rose-400/40',
-    slate: 'bg-slate-500/20 text-slate-300 ring-slate-400/40',
-  }
+function Pill({ status, label }: { status: Status; label: string }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 ring-1 font-medium ${map[color]}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 ring-1 font-medium ${STATUS_STYLES[status]}`}>
       {label}
     </span>
   )

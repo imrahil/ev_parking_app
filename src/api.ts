@@ -1,5 +1,5 @@
 import type { StationApiResponse, StationRef } from './types'
-import { STATE_CODE, STATUS, type Status } from './consts'
+import { STATE_CODE, STATUS, type Status } from './consts/consts'
 
 const BASE = 'https://www.ecarup.com/api/stations'
 

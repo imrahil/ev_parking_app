@@ -1,24 +1,6 @@
-import type { StationView } from './types'
-import { stateToStatus } from './api'
-import { STATUS, type Status } from './consts'
-
-const STATUS_STYLES: Record<Status, string> = {
-  [STATUS.AVAILABLE]: 'bg-emerald-500/20 text-emerald-300 ring-emerald-400/40',
-  [STATUS.OCCUPIED]: 'bg-rose-500/20 text-rose-300 ring-rose-400/40',
-  [STATUS.UNKNOWN]: 'bg-slate-500/20 text-slate-300 ring-slate-400/40',
-}
-
-const STATUS_LABEL: Record<Status, string> = {
-  [STATUS.AVAILABLE]: 'Available',
-  [STATUS.OCCUPIED]: 'Occupied',
-  [STATUS.UNKNOWN]: 'Unknown',
-}
-
-const STATUS_DOT: Record<Status, string> = {
-  [STATUS.AVAILABLE]: 'bg-emerald-400 shadow-emerald-400/60',
-  [STATUS.OCCUPIED]: 'bg-rose-400 shadow-rose-400/60',
-  [STATUS.UNKNOWN]: 'bg-slate-400 shadow-slate-400/40',
-}
+import type { StationView } from '../types'
+import { stateToStatus } from '../api'
+import { STATUS_STYLES, STATUS_LABEL, STATUS_DOT } from '../consts/consts'
 
 function timeAgo(ts: number | null): string {
   if (!ts) return '—'
