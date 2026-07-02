@@ -8,6 +8,8 @@ import { STATUS, STATUS_STYLES, type Status } from './consts/consts'
 const STORAGE_KEY = 'parking-app:refreshMin'
 const FILTER_KEY = 'parking-app:groupFilter'
 
+const email = ["imrahil", "imrahil.com"].join("@");
+
 function readStoredMin(): number {
   const raw = localStorage.getItem(STORAGE_KEY)
   const n = raw ? Number(raw) : NaN
@@ -154,6 +156,12 @@ export function App() {
         </div>
         <footer className="mt-10 text-center text-xs text-slate-500">
           Data: ecarup.com · Refresh every {refreshMin} min
+
+          <br />
+
+          © 2026 Jarek Szczepanski (
+          <a href="{`mailto:${email}`}" className="hover:underline"> {email} </a>
+          )
         </footer>
       </main>
     </div>
