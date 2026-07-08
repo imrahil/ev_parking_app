@@ -1,0 +1,16 @@
+name = "parking-status"
+main = "src/worker.js"
+compatibility_date = "2026-07-01"
+
+# Refresh the cached station data every 10 minutes
+[triggers]
+crons = ["*/10 * * * *"]
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "d2ae45c3f2bc412cb6a952a8096315d4"
+
+[vars]
+# The worker reads the station list from GitHub Pages, so stations stay
+# editable on GitHub without redeploying the worker.
+STATIONS_JSON_URL = "https://imrahil.github.io/ev_parking_app/stations.json"

@@ -22,6 +22,16 @@ export type StationApiResponse = {
   Connectors: Connector[]
 }
 
+// Shape served by the Cloudflare Worker's GET /stations (see worker/README.md)
+export type AllStationsResponse = {
+  updatedAt: number
+  stations: {
+    ref: StationRef
+    data: StationApiResponse | null
+    error?: string
+  }[]
+}
+
 export type StationView = {
   ref: StationRef
   loading: boolean

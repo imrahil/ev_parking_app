@@ -144,7 +144,7 @@ export function App() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {refsError && (
           <div className="mb-4 rounded-xl bg-busy/10 ring-1 ring-busy/30 px-4 py-3 text-busy text-sm">
-            Failed to load stations.json: {refsError}
+            Failed to load station data: {refsError}
           </div>
         )}
         {filtered.length === 0 && !refsError && (
