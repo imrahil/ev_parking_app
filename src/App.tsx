@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useStations } from './hooks/useStations'
 import { useTheme, type Theme } from './hooks/useTheme'
 import { StationCard } from './components/StationCard'
+import { SettingsDialog } from './components/SettingsDialog'
 import { stateToStatus } from './api'
 import { STATUS, STATUS_STYLES, type Status } from './consts/consts'
 
 const FILTER_KEY = 'parking-app:groupFilter'
+const HIDDEN_KEY = 'parking-app:hiddenGroups'
+const DEFAULT_HIDDEN = ['Besucherplatz', 'Parkhaus EG']
 
 // The worker refreshes from ecarup every 10 min; polling its cache every
 // minute keeps the board at most ~1 min behind that
@@ -15,12 +18,35 @@ function readStoredFilter(): string {
   return localStorage.getItem(FILTER_KEY) ?? ''
 }
 
+function readStoredHidden(): string[] {
+  const raw = localStorage.getItem(HIDDEN_KEY)
+  if (!raw) return DEFAULT_HIDDEN
+  try {
+    const v: unknown = JSON.parse(raw)
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : DEFAULT_HIDDEN
+  } catch {
+    return DEFAULT_HIDDEN
+  }
+}
+
 export function App() {
   const [activeGroup, setActiveGroup] = useState<string>(() => readStoredFilter())
 
   useEffect(() => {
     localStorage.setItem(FILTER_KEY, activeGroup)
   }, [activeGroup])
+
+  const [hiddenGroups, setHiddenGroups] = useState<string[]>(() => readStoredHidden())
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  useEffect(() => {
+    localStorage.setItem(HIDDEN_KEY, JSON.stringify(hiddenGroups))
+  }, [hiddenGroups])
+
+  // If the currently filtered group gets hidden, fall back to "All"
+  useEffect(() => {
+    if (activeGroup && hiddenGroups.includes(activeGroup)) setActiveGroup('')
+  }, [hiddenGroups, activeGroup])
 
   const { refs, refsError, views } = useStations(REFRESH_MS)
   const { theme, cycleTheme } = useTheme()
@@ -40,10 +66,21 @@ export function App() {
     ).sort()
   }, [refs])
 
+  const visibleGroups = useMemo(
+    () => groups.filter((g) => !hiddenGroups.includes(g)),
+    [groups, hiddenGroups],
+  )
+
+  // Ungrouped stations are always visible; hiding applies per group
+  const visibleOrdered = useMemo(
+    () => ordered.filter((v) => !v.ref.group || !hiddenGroups.includes(v.ref.group)),
+    [ordered, hiddenGroups],
+  )
+
   const filtered = useMemo(() => {
-    if (!activeGroup) return ordered
-    return ordered.filter((v) => v.ref.group === activeGroup)
-  }, [ordered, activeGroup])
+    if (!activeGroup) return visibleOrdered
+    return visibleOrdered.filter((v) => v.ref.group === activeGroup)
+  }, [visibleOrdered, activeGroup])
 
   const counts = useMemo(() => {
     let a = 0, o = 0
@@ -57,9 +94,9 @@ export function App() {
 
   const groupStats = useMemo(() => {
     const stats: Record<string, { free: number; total: number }> = {}
-    for (const g of groups) stats[g] = { free: 0, total: 0 }
+    for (const g of visibleGroups) stats[g] = { free: 0, total: 0 }
     let allFree = 0
-    for (const v of ordered) {
+    for (const v of visibleOrdered) {
       const g = v.ref.group
       const free = stateToStatus(v.data?.State) === STATUS.AVAILABLE
       if (free) allFree++
@@ -68,8 +105,8 @@ export function App() {
         if (free) stats[g].free++
       }
     }
-    return { stats, all: { free: allFree, total: ordered.length } }
-  }, [ordered, groups])
+    return { stats, all: { free: allFree, total: visibleOrdered.length } }
+  }, [visibleOrdered, visibleGroups])
 
   const toggleGroup = (g: string) => {
     setActiveGroup((prev) => (prev === g ? '' : g))
@@ -86,17 +123,25 @@ export function App() {
               className="h-9 w-9 rounded-xl shadow-lg"
             />
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl uppercase tracking-tight leading-tight">
+              <h1 className="text-lg sm:text-2xl uppercase tracking-tight leading-tight truncate">
                 Pilatus EV Chargers
               </h1>
               <p className="text-xs text-navy/60 dark:text-white/60">Live status overview</p>
             </div>
-            <div className="ml-auto flex items-center gap-2 text-xs">
+            <div className="ml-auto flex shrink-0 items-center gap-2 text-xs">
               <div className="hidden sm:flex items-center gap-2">
                 <Pill status={STATUS.AVAILABLE} label={`${counts.a} free`} />
                 <Pill status={STATUS.OCCUPIED} label={`${counts.o} busy`} />
               </div>
               <ThemeToggle theme={theme} onCycle={cycleTheme} />
+              <button
+                onClick={() => setSettingsOpen(true)}
+                title="Settings"
+                aria-label="Settings"
+                className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 transition bg-transparent text-navy/70 ring-navy/25 hover:ring-navy/60 hover:text-navy dark:text-white/70 dark:ring-white/25 dark:hover:ring-white/60 dark:hover:text-white"
+              >
+                <span aria-hidden>⚙</span>
+              </button>
             </div>
           </div>
 
@@ -107,7 +152,7 @@ export function App() {
               label="All"
               stats={groupStats.all}
             />
-            {groups.map((g) => (
+            {visibleGroups.map((g) => (
               <FilterChip
                 key={g}
                 active={activeGroup === g}
@@ -143,6 +188,18 @@ export function App() {
           © 2026 Jarek Szczepanski
         </footer>
       </main>
+
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        groups={groups}
+        hidden={hiddenGroups}
+        onToggle={(g) =>
+          setHiddenGroups((prev) =>
+            prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g],
+          )
+        }
+      />
     </div>
   )
 }
@@ -162,7 +219,7 @@ function ThemeToggle({ theme, onCycle }: { theme: Theme; onCycle: () => void }) 
       className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 transition bg-transparent text-navy/70 ring-navy/25 hover:ring-navy/60 hover:text-navy dark:text-white/70 dark:ring-white/25 dark:hover:ring-white/60 dark:hover:text-white"
     >
       <span aria-hidden>{icon}</span>
-      <span>{label}</span>
+      <span className="hidden sm:inline">{label}</span>
     </button>
   )
 }
