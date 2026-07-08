@@ -1,6 +1,12 @@
 const ECARUP_BASE = 'https://www.ecarup.com/api/stations'
 const KV_KEY = 'all'
 
+// Night window (Europe/Zurich): only hourly refreshes between these hours.
+// Overnight parking isn't allowed, so nobody needs fresh data at night.
+const NIGHT_START_HOUR = 20 // inclusive
+const NIGHT_END_HOUR = 6 // exclusive
+const TIME_ZONE = 'Europe/Zurich'
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -38,19 +44,17 @@ async function refreshAll(env) {
 
 export default {
   async scheduled(event, env) {
-    // Overnight parking isn't allowed, so nobody needs fresh data at night:
-    // refresh every 10 min from 06:00-17:59 Zurich time, hourly otherwise.
-    // (Cron schedules run in UTC; checking Europe/Zurich here keeps the
-    // boundary correct across daylight-saving changes.)
+    // Cron schedules run in UTC; checking the local hour here keeps the
+    // night boundary correct across daylight-saving changes.
     const when = new Date(event.scheduledTime)
     const hour = Number(
       new Intl.DateTimeFormat('en-GB', {
         hour: 'numeric',
         hourCycle: 'h23',
-        timeZone: 'Europe/Zurich',
+        timeZone: TIME_ZONE,
       }).format(when)
     )
-    const night = hour >= 18 || hour < 6
+    const night = hour >= NIGHT_START_HOUR || hour < NIGHT_END_HOUR
     if (night && when.getUTCMinutes() !== 0) return
     await refreshAll(env)
   },
