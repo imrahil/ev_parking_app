@@ -46,14 +46,13 @@ export function App() {
   }, [ordered, activeGroup])
 
   const counts = useMemo(() => {
-    let a = 0, o = 0, u = 0
+    let a = 0, o = 0
     for (const v of filtered) {
       const s = stateToStatus(v.data?.State)
       if (s === STATUS.AVAILABLE) a++
       else if (s === STATUS.OCCUPIED) o++
-      else u++
     }
-    return { a, o, u }
+    return { a, o }
   }, [filtered])
 
   const groupStats = useMemo(() => {
@@ -96,7 +95,6 @@ export function App() {
               <div className="hidden sm:flex items-center gap-2">
                 <Pill status={STATUS.AVAILABLE} label={`${counts.a} free`} />
                 <Pill status={STATUS.OCCUPIED} label={`${counts.o} busy`} />
-                <Pill status={STATUS.UNKNOWN} label={`${counts.u} ?`} />
               </div>
               <ThemeToggle theme={theme} onCycle={cycleTheme} />
             </div>
