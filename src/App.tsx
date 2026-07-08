@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStations } from './hooks/useStations'
+import { useTheme, type Theme } from './hooks/useTheme'
 import { StationCard } from './components/StationCard'
 import { SettingsBar } from './components/SettingsBar'
 import { stateToStatus } from './api'
@@ -32,6 +33,7 @@ export function App() {
   }, [activeGroup])
 
   const { refs, refsError, views, lastTick, refreshNow } = useStations(refreshMin * 60_000)
+  const { theme, cycleTheme } = useTheme()
 
   const [, setNow] = useState(0)
 
@@ -86,7 +88,7 @@ export function App() {
 
   return (
     <div className="min-h-full">
-      <header className="sticky top-0 z-10 backdrop-blur bg-slate-950/60 ring-1 ring-white/5">
+      <header className="sm:sticky top-0 z-10 backdrop-blur bg-paper/90 dark:bg-ink/90 border-b border-navy/10 dark:border-white/10">
         <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <img
@@ -95,15 +97,18 @@ export function App() {
               className="h-9 w-9 rounded-xl shadow-lg"
             />
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-bold text-white leading-tight">
+              <h1 className="text-lg sm:text-2xl uppercase tracking-tight leading-tight">
                 Pilatus EV Chargers
               </h1>
-              <p className="text-xs text-slate-400">Live status overview</p>
+              <p className="text-xs text-navy/60 dark:text-white/60">Live status overview</p>
             </div>
-            <div className="ml-auto hidden sm:flex items-center gap-2 text-xs">
-              <Pill status={STATUS.AVAILABLE} label={`${counts.a} free`} />
-              <Pill status={STATUS.OCCUPIED} label={`${counts.o} busy`} />
-              <Pill status={STATUS.UNKNOWN} label={`${counts.u} ?`} />
+            <div className="ml-auto flex items-center gap-2 text-xs">
+              <div className="hidden sm:flex items-center gap-2">
+                <Pill status={STATUS.AVAILABLE} label={`${counts.a} free`} />
+                <Pill status={STATUS.OCCUPIED} label={`${counts.o} busy`} />
+                <Pill status={STATUS.UNKNOWN} label={`${counts.u} ?`} />
+              </div>
+              <ThemeToggle theme={theme} onCycle={cycleTheme} />
             </div>
           </div>
 
@@ -138,21 +143,21 @@ export function App() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {refsError && (
-          <div className="mb-4 rounded-lg bg-rose-500/15 ring-1 ring-rose-400/30 px-4 py-3 text-rose-200 text-sm">
+          <div className="mb-4 rounded-xl bg-busy/10 ring-1 ring-busy/30 px-4 py-3 text-busy text-sm">
             Failed to load stations.json: {refsError}
           </div>
         )}
         {filtered.length === 0 && !refsError && (
-          <div className="text-center text-slate-500 text-sm py-12">
+          <div className="text-center text-navy/50 dark:text-white/50 text-sm py-12">
             No stations match the current filter.
           </div>
         )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((v) => (
             <StationCard key={v.ref.id} view={v} />
           ))}
         </div>
-        <footer className="mt-10 text-center text-xs text-slate-500">
+        <footer className="mt-10 text-center text-xs text-navy/50 dark:text-white/40">
           Data: ecarup.com · Refresh every {refreshMin} min
           <br />
           © 2026 Jarek Szczepanski
@@ -162,9 +167,29 @@ export function App() {
   )
 }
 
+const THEME_META: Record<Theme, { icon: string; label: string }> = {
+  auto: { icon: '◐', label: 'Auto' },
+  light: { icon: '☀', label: 'Light' },
+  dark: { icon: '☾', label: 'Dark' },
+}
+
+function ThemeToggle({ theme, onCycle }: { theme: Theme; onCycle: () => void }) {
+  const { icon, label } = THEME_META[theme]
+  return (
+    <button
+      onClick={onCycle}
+      title={`Theme: ${label} — click to change`}
+      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 transition bg-transparent text-navy/70 ring-navy/25 hover:ring-navy/60 hover:text-navy dark:text-white/70 dark:ring-white/25 dark:hover:ring-white/60 dark:hover:text-white"
+    >
+      <span aria-hidden>{icon}</span>
+      <span>{label}</span>
+    </button>
+  )
+}
+
 function Pill({ status, label }: { status: Status; label: string }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 ring-1 font-medium ${STATUS_STYLES[status]}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-1 font-semibold ${STATUS_STYLES[status]}`}>
       {label}
     </span>
   )
@@ -183,17 +208,17 @@ function FilterChip({
 }) {
   const hasStats = stats && stats.total > 0
   const badgeColor = active
-    ? 'bg-slate-900/20 text-slate-900'
+    ? 'bg-white/25 text-white dark:bg-navy/15 dark:text-navy'
     : hasStats && stats.free > 0
-      ? 'bg-emerald-500/20 text-emerald-300'
-      : 'bg-slate-700/60 text-slate-400'
+      ? 'bg-mint/15 text-mint'
+      : 'bg-navy/10 text-navy/50 dark:bg-white/10 dark:text-white/50'
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ring-1 transition ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
         active
-          ? 'bg-cyan-400/90 text-slate-900 ring-cyan-300 shadow'
-          : 'bg-slate-800/60 text-slate-300 ring-white/10 hover:ring-white/30 hover:text-white'
+          ? 'bg-navy text-white shadow dark:bg-white dark:text-navy'
+          : 'bg-transparent text-navy/70 ring-1 ring-navy/25 hover:ring-navy/60 hover:text-navy dark:text-white/70 dark:ring-white/25 dark:hover:ring-white/60 dark:hover:text-white'
       }`}
     >
       <span>{label}</span>

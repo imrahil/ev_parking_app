@@ -1,7 +1,26 @@
 @import "tailwindcss";
+@import "@fontsource-variable/libre-franklin";
+
+/* Class-based dark mode so the in-app switch can override the OS setting.
+   The .dark class on <html> is managed by useTheme (and the inline script
+   in index.html that prevents a flash of the wrong theme on load). */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* ITC Franklin Gothic Std is the menu's corporate font (commercial, Monotype).
+     Libre Franklin is the closest open-source Franklin Gothic and ships with the app;
+     the real font is picked up automatically where it is installed. */
+  --font-sans: "ITC Franklin Gothic Std", "Libre Franklin Variable",
+    "Libre Franklin", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+
+  /* Palette lifted from Screenimage_Wochenmenü SVGs */
+  --color-ink: #081823; /* dark-mode page background */
+  --color-navy: #081823; /* headings, dark-mode cards */
+  --color-brand: #019eda; /* price-blue accent */
+  --color-mint: #25ac92; /* "Vegi" green — available */
+  --color-busy: #d64550; /* not in the menu palette; status semantics need a red */
+  --color-paper: #f4f5f7; /* light-mode page background */
 }
 
 html, body, #root {
@@ -10,8 +29,13 @@ html, body, #root {
 
 body {
   margin: 0;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-  color: #e2e8f0;
+  background: var(--color-paper);
+  color: var(--color-navy);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+}
+
+.dark body {
+  background: var(--color-ink);
+  color: #fff;
 }

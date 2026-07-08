@@ -1,6 +1,31 @@
 import type { StationView } from '../types'
 import { stateToStatus } from '../api'
-import { STATUS_STYLES, STATUS_LABEL, STATUS_DOT } from '../consts/consts'
+import {
+  STATUS,
+  STATUS_LABEL,
+  CONNECTOR_STYLES,
+  CONNECTOR_DOT,
+  type Status,
+} from '../consts/consts'
+
+// Price-style status text, like the menu's blue «CHF 9.20»
+const STATUS_TEXT: Record<Status, string> = {
+  [STATUS.AVAILABLE]: 'free',
+  [STATUS.OCCUPIED]: 'occupied',
+  [STATUS.UNKNOWN]: 'unknown',
+}
+
+const STATUS_TEXT_STYLES: Record<Status, string> = {
+  [STATUS.AVAILABLE]: 'text-mint',
+  [STATUS.OCCUPIED]: 'text-brand',
+  [STATUS.UNKNOWN]: 'text-navy/50 dark:text-white/50',
+}
+
+const STATUS_TEXT_DOT: Record<Status, string> = {
+  [STATUS.AVAILABLE]: 'bg-mint shadow-[0_0_8px] shadow-mint/60',
+  [STATUS.OCCUPIED]: 'bg-brand shadow-[0_0_8px] shadow-brand/60',
+  [STATUS.UNKNOWN]: 'bg-navy/40 dark:bg-white/40',
+}
 
 function timeAgo(ts: number | null): string {
   if (!ts) return '—'
@@ -19,32 +44,34 @@ export function StationCard({ view }: { view: StationView }) {
   const name = data?.Name ?? ref.name
   const desc = data?.Description
 
+  const connectors = data?.Connectors ?? []
+
   return (
-    <div className="rounded-2xl bg-slate-800/60 ring-1 ring-white/10 p-5 shadow-lg backdrop-blur transition hover:ring-white/20">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-xl p-5 bg-white text-navy shadow-[0_8px_20px_-6px_rgba(8,24,35,0.25)] dark:bg-navy dark:text-white dark:shadow-[0_0_4px_1px_rgba(255,255,255,0.22),0_0_10px_2px_rgba(255,255,255,0.12),8px_10px_20px_rgba(0,0,0,0.85)]">
+      <div className="flex items-start justify-between gap-3 border-b border-navy/80 dark:border-white/80 pb-3">
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-white truncate">{name}</h3>
-          {desc && <p className="text-xs text-slate-400 mt-0.5 truncate">{desc}</p>}
+          <h3 className="text-base tracking-tight truncate">{name}</h3>
+          {desc && <p className="text-xs text-navy/60 dark:text-white/60 mt-0.5 truncate">{desc}</p>}
         </div>
         <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${STATUS_STYLES[overall]}`}
+          className={`inline-flex shrink-0 items-center gap-1.5 text-sm font-bold uppercase tracking-wide ${STATUS_TEXT_STYLES[overall]}`}
         >
-          <span className={`h-2 w-2 rounded-full shadow-[0_0_8px] ${STATUS_DOT[overall]}`} />
-          {STATUS_LABEL[overall]}
+          <span className={`h-2 w-2 rounded-full ${STATUS_TEXT_DOT[overall]}`} />
+          {STATUS_TEXT[overall]}
         </span>
       </div>
 
-      {data && data.Connectors.length > 1 && (
+      {connectors.length > 1 && (
         <div className="mt-4 flex flex-wrap gap-1.5">
-          {data.Connectors.map((c) => {
+          {connectors.map((c) => {
             const s = stateToStatus(c.State)
             return (
               <span
                 key={c.Id}
-                className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] ring-1 ${STATUS_STYLES[s]}`}
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${CONNECTOR_STYLES[s]}`}
                 title={`Connector ${c.Name}: ${STATUS_LABEL[s]}`}
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[s]}`} />
+                <span className={`h-1.5 w-1.5 rounded-full ${CONNECTOR_DOT[s]}`} />
                 {c.Name}
               </span>
             )
@@ -52,9 +79,13 @@ export function StationCard({ view }: { view: StationView }) {
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-        <span>{loading && !data ? 'Loading…' : `Updated ${timeAgo(fetchedAt)}`}</span>
-        {error && <span className="text-amber-300/80 truncate ml-2" title={error}>⚠ {error}</span>}
+      <div className="mt-4 text-xs text-navy/50 dark:text-white/50">
+        {loading && !data ? 'Loading…' : `Updated ${timeAgo(fetchedAt)}`}
+        {error && (
+          <span className="text-busy dark:text-[#f08a92] ml-2 truncate" title={error}>
+            ⚠ {error}
+          </span>
+        )}
       </div>
     </div>
   )

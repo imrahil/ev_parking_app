@@ -11,10 +11,20 @@ export const STATE_CODE = {
   OCCUPIED: 2,
 } as const
 
+// Solid pill badges, like the menu's «Vegi» / «Fisch» tags
 export const STATUS_STYLES: Record<Status, string> = {
-  [STATUS.AVAILABLE]: 'bg-emerald-500/20 text-emerald-300 ring-emerald-400/40',
-  [STATUS.OCCUPIED]: 'bg-rose-500/20 text-rose-300 ring-rose-400/40',
-  [STATUS.UNKNOWN]: 'bg-slate-500/20 text-slate-300 ring-slate-400/40',
+  [STATUS.AVAILABLE]: 'bg-mint text-white',
+  [STATUS.OCCUPIED]: 'bg-busy text-white',
+  [STATUS.UNKNOWN]:
+    'bg-transparent text-navy/60 ring-1 ring-navy/30 dark:text-white/60 dark:ring-white/30',
+}
+
+// Tinted chips for per-connector state (sit on card surfaces)
+export const CONNECTOR_STYLES: Record<Status, string> = {
+  [STATUS.AVAILABLE]: 'bg-mint/15 text-mint ring-1 ring-mint/30',
+  [STATUS.OCCUPIED]: 'bg-busy/15 text-busy ring-1 ring-busy/30 dark:text-[#f08a92]',
+  [STATUS.UNKNOWN]:
+    'bg-navy/5 text-navy/60 ring-1 ring-navy/20 dark:bg-white/5 dark:text-white/50 dark:ring-white/15',
 }
 
 export const STATUS_LABEL: Record<Status, string> = {
@@ -24,7 +34,13 @@ export const STATUS_LABEL: Record<Status, string> = {
 }
 
 export const STATUS_DOT: Record<Status, string> = {
-  [STATUS.AVAILABLE]: 'bg-emerald-400 shadow-emerald-400/60',
-  [STATUS.OCCUPIED]: 'bg-rose-400 shadow-rose-400/60',
-  [STATUS.UNKNOWN]: 'bg-slate-400 shadow-slate-400/40',
+  [STATUS.AVAILABLE]: 'bg-white/90',
+  [STATUS.OCCUPIED]: 'bg-white/90',
+  [STATUS.UNKNOWN]: 'bg-navy/50 dark:bg-white/50',
+}
+
+export const CONNECTOR_DOT: Record<Status, string> = {
+  [STATUS.AVAILABLE]: 'bg-mint',
+  [STATUS.OCCUPIED]: 'bg-busy',
+  [STATUS.UNKNOWN]: 'bg-navy/40 dark:bg-white/40',
 }

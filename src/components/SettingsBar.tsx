@@ -11,12 +11,12 @@ export function SettingsBar({ refreshMin, onRefreshMin, onManualRefresh, lastTic
   const updated = new Date(lastTick).toLocaleTimeString()
   return (
     <div className="flex flex-wrap items-center gap-3 text-sm">
-      <label className="flex items-center gap-2 text-slate-300">
-        <span className="text-slate-400">Refresh</span>
+      <label className="flex items-center gap-2">
+        <span className="text-navy/60 dark:text-white/60">Refresh</span>
         <select
           value={refreshMin}
           onChange={(e) => onRefreshMin(Number(e.target.value))}
-          className="rounded-lg bg-slate-800/80 ring-1 ring-white/10 px-2.5 py-1.5 text-white focus:outline-none focus:ring-cyan-400/60"
+          className="rounded-full bg-white text-navy ring-1 ring-navy/20 px-2.5 py-1.5 dark:bg-navy dark:text-white dark:ring-white/20 focus:outline-none focus:ring-brand"
         >
           {OPTIONS.map((m) => (
             <option key={m} value={m}>
@@ -27,11 +27,11 @@ export function SettingsBar({ refreshMin, onRefreshMin, onManualRefresh, lastTic
       </label>
       <button
         onClick={onManualRefresh}
-        className="rounded-lg bg-cyan-500/90 hover:bg-cyan-400 text-slate-900 font-semibold px-3 py-1.5 transition shadow"
+        className="rounded-full bg-brand hover:bg-[#0b8ec2] text-white font-semibold px-4 py-1.5 transition shadow"
       >
         Refresh now
       </button>
-      <span className="text-xs text-slate-400 ml-auto">Last sync: {updated}</span>
+      <span className="text-xs text-navy/50 dark:text-white/50 ml-auto">Last sync: {updated}</span>
     </div>
   )
 }
