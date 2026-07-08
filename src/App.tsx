@@ -2,37 +2,27 @@ import { useEffect, useMemo, useState } from 'react'
 import { useStations } from './hooks/useStations'
 import { useTheme, type Theme } from './hooks/useTheme'
 import { StationCard } from './components/StationCard'
-import { SettingsBar } from './components/SettingsBar'
 import { stateToStatus } from './api'
 import { STATUS, STATUS_STYLES, type Status } from './consts/consts'
 
-const STORAGE_KEY = 'parking-app:refreshMin'
 const FILTER_KEY = 'parking-app:groupFilter'
 
-function readStoredMin(): number {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  const n = raw ? Number(raw) : NaN
-  return Number.isFinite(n) && n > 0 ? n : 5
-}
+// The worker refreshes from ecarup every 10 min; polling its cache every
+// minute keeps the board at most ~1 min behind that
+const REFRESH_MS = 60_000
 
 function readStoredFilter(): string {
   return localStorage.getItem(FILTER_KEY) ?? ''
 }
 
 export function App() {
-  const [refreshMin, setRefreshMin] = useState<number>(() => readStoredMin())
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, String(refreshMin))
-  }, [refreshMin])
-
   const [activeGroup, setActiveGroup] = useState<string>(() => readStoredFilter())
 
   useEffect(() => {
     localStorage.setItem(FILTER_KEY, activeGroup)
   }, [activeGroup])
 
-  const { refs, refsError, views, lastTick, refreshNow } = useStations(refreshMin * 60_000)
+  const { refs, refsError, views } = useStations(REFRESH_MS)
   const { theme, cycleTheme } = useTheme()
 
   const [, setNow] = useState(0)
@@ -130,14 +120,6 @@ export function App() {
             ))}
           </div>
 
-          <div className="mt-3">
-            <SettingsBar
-              refreshMin={refreshMin}
-              onRefreshMin={setRefreshMin}
-              onManualRefresh={refreshNow}
-              lastTick={lastTick}
-            />
-          </div>
         </div>
       </header>
 
@@ -158,7 +140,7 @@ export function App() {
           ))}
         </div>
         <footer className="mt-10 text-center text-xs text-navy/50 dark:text-white/40">
-          Data: ecarup.com · Refresh every {refreshMin} min
+          Data: ecarup.com · updates every 10 min
           <br />
           © 2026 Jarek Szczepanski
         </footer>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { API_URL, fetchAllStations, fetchStation, loadStations } from '../api'
 import type { StationRef, StationView } from '../types'
 
@@ -6,8 +6,6 @@ export function useStations(refreshMs: number) {
   const [refs, setRefs] = useState<StationRef[]>([])
   const [refsError, setRefsError] = useState<string | null>(null)
   const [views, setViews] = useState<Record<string, StationView>>({})
-  const [lastTick, setLastTick] = useState<number>(Date.now())
-  const refreshFnRef = useRef<() => void>(() => {})
 
   // Direct mode only: the station list comes from stations.json.
   // In API mode the list arrives with every /stations response instead.
@@ -99,7 +97,6 @@ export function useStations(refreshMs: number) {
       try {
         if (API_URL) await refreshFromApi()
         else await refreshDirect()
-        setLastTick(Date.now())
       } catch (e: unknown) {
         // API mode only; stale views are kept so the board stays usable
         if (!ac.signal.aborted) setRefsError(e instanceof Error ? e.message : String(e))
@@ -108,17 +105,22 @@ export function useStations(refreshMs: number) {
       }
     }
 
-    refreshFnRef.current = refresh
+    // Refresh immediately when the tab/PWA comes back into view, so a
+    // reopened phone shows current data without waiting for the interval
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+
     refresh()
     const id = setInterval(refresh, refreshMs)
+    document.addEventListener('visibilitychange', onVisible)
 
     return () => {
       clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
       ac.abort()
     }
   }, [refs, refreshMs])
 
-  const refreshNow = () => refreshFnRef.current()
-
-  return { refs, refsError, views, lastTick, refreshNow }
+  return { refs, refsError, views }
 }

@@ -17,7 +17,7 @@ Single-page React + Vite + TypeScript + Tailwind v4 app, hosted on GitHub Pages 
 Data flow:
 
 1. `public/stations.json` — list of `{id, name, group?}` station refs, read by the worker on every refresh (and by the browser in direct mode). **Edited directly on GitHub** to add stations without rebuilding or redeploying anything.
-2. `src/hooks/useStations.ts` — API mode: one `fetchAllStations()` call per interval; direct mode: loads `stations.json`, then polls `fetchStation(id)` per ID. Refresh interval (minutes) is persisted in `localStorage` under `parking-app:refreshMin`.
+2. `src/hooks/useStations.ts` — API mode: one `fetchAllStations()` call per interval; direct mode: loads `stations.json`, then polls `fetchStation(id)` per ID. Auto-refreshes every 60 s (fixed, `REFRESH_MS` in `App.tsx`) and on tab `visibilitychange`; there are no user-facing refresh controls.
 3. `src/api.ts` — `stateToStatus()` maps the API's numeric `State` field: `1 → available`, `2 → occupied`, anything else → `unknown`. Same mapping applies to per-`Connector` state.
 4. `src/App.tsx` renders `StationCard`s in a responsive grid; cards display the station's overall status plus per-connector chips when a station has multiple connectors.
 
