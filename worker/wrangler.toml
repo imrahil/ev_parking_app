@@ -2,7 +2,8 @@ name = "parking-status"
 main = "src/worker.js"
 compatibility_date = "2026-07-01"
 
-# Refresh the cached station data every 10 minutes
+# Fires every 10 minutes; the scheduled handler skips most night runs
+# (18:00-06:00 Europe/Zurich refreshes only hourly)
 [triggers]
 crons = ["*/10 * * * *"]
 

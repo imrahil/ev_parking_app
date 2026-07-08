@@ -55,7 +55,10 @@ useful for local dev and as an escape hatch if the worker is down.
 - **Add/remove stations**: edit `public/stations.json` on GitHub as before.
   The worker re-reads it on every refresh — no redeploy needed.
 - **Logs**: `npx wrangler tail`
-- **Change cadence**: edit `crons` in `wrangler.toml`, redeploy.
+- **Change cadence**: edit `crons` in `wrangler.toml`, redeploy. The cron fires
+  every 10 minutes, but between 18:00 and 06:00 Europe/Zurich the handler only
+  refreshes on the full hour (overnight parking isn't allowed, so nobody needs
+  fresh data then) — that window lives in `worker.js`, not in the cron.
 - **Limits** (free plan): 100k requests/day, 50 subrequests per invocation
   (caps the station list at ~48 — batch the fetches in `refreshAll` if you
   ever exceed that), KV 1k writes/day (cron uses 144).

@@ -37,7 +37,21 @@ async function refreshAll(env) {
 }
 
 export default {
-  async scheduled(_event, env) {
+  async scheduled(event, env) {
+    // Overnight parking isn't allowed, so nobody needs fresh data at night:
+    // refresh every 10 min from 06:00-17:59 Zurich time, hourly otherwise.
+    // (Cron schedules run in UTC; checking Europe/Zurich here keeps the
+    // boundary correct across daylight-saving changes.)
+    const when = new Date(event.scheduledTime)
+    const hour = Number(
+      new Intl.DateTimeFormat('en-GB', {
+        hour: 'numeric',
+        hourCycle: 'h23',
+        timeZone: 'Europe/Zurich',
+      }).format(when)
+    )
+    const night = hour >= 18 || hour < 6
+    if (night && when.getUTCMinutes() !== 0) return
     await refreshAll(env)
   },
 
