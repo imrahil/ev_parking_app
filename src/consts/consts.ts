@@ -11,14 +11,6 @@ export const STATE_CODE = {
   OCCUPIED: 2,
 } as const
 
-// Solid pill badges, like the menu's «Vegi» / «Fisch» tags
-export const STATUS_STYLES: Record<Status, string> = {
-  [STATUS.AVAILABLE]: 'bg-mint text-white',
-  [STATUS.OCCUPIED]: 'bg-busy text-white',
-  [STATUS.UNKNOWN]:
-    'bg-transparent text-navy/60 ring-1 ring-navy/30 dark:text-white/60 dark:ring-white/30',
-}
-
 // Tinted chips for per-connector state (sit on card surfaces)
 export const CONNECTOR_STYLES: Record<Status, string> = {
   [STATUS.AVAILABLE]: 'bg-mint/15 text-mint ring-1 ring-mint/30',

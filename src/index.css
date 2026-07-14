@@ -21,6 +21,7 @@
   --color-mint: #25ac92; /* "Vegi" green — available */
   --color-busy: #d64550; /* not in the menu palette; status semantics need a red */
   --color-paper: #f4f5f7; /* light-mode page background */
+  --color-selected: #122945; /* active filter chip in light mode */
 }
 
 html, body, #root {

@@ -10,9 +10,9 @@ import {
 
 // Price-style status text, like the menu's blue «CHF 9.20»
 const STATUS_TEXT: Record<Status, string> = {
-  [STATUS.AVAILABLE]: 'free',
-  [STATUS.OCCUPIED]: 'occupied',
-  [STATUS.UNKNOWN]: 'unknown',
+  [STATUS.AVAILABLE]: 'Free',
+  [STATUS.OCCUPIED]: 'Occupied',
+  [STATUS.UNKNOWN]: 'Unknown',
 }
 
 const STATUS_TEXT_STYLES: Record<Status, string> = {
@@ -54,7 +54,7 @@ export function StationCard({ view }: { view: StationView }) {
           {desc && <p className="text-xs text-navy/60 dark:text-white/60 mt-0.5 truncate">{desc}</p>}
         </div>
         <span
-          className={`inline-flex shrink-0 items-center gap-1.5 text-sm font-bold uppercase tracking-wide ${STATUS_TEXT_STYLES[overall]}`}
+          className={`inline-flex shrink-0 items-center gap-1.5 text-sm font-bold tracking-wide ${STATUS_TEXT_STYLES[overall]}`}
         >
           <span className={`h-2 w-2 rounded-full ${STATUS_TEXT_DOT[overall]}`} />
           {STATUS_TEXT[overall]}

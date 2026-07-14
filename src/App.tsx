@@ -4,7 +4,7 @@ import { useTheme, type Theme } from './hooks/useTheme'
 import { StationCard } from './components/StationCard'
 import { SettingsDialog } from './components/SettingsDialog'
 import { stateToStatus } from './api'
-import { STATUS, STATUS_STYLES, type Status } from './consts/consts'
+import { STATUS } from './consts/consts'
 
 const FILTER_KEY = 'parking-app:groupFilter'
 const HIDDEN_KEY = 'parking-app:hiddenGroups'
@@ -123,15 +123,15 @@ export function App() {
               className="h-9 w-9 rounded-xl shadow-lg"
             />
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl uppercase tracking-tight leading-tight truncate">
+              <h1 className="text-lg sm:text-2xl tracking-tight leading-tight truncate">
                 Pilatus EV Chargers
               </h1>
               <p className="text-xs text-navy/60 dark:text-white/60">Live status overview</p>
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-2 text-xs">
-              <div className="hidden sm:flex items-center gap-2">
-                <Pill status={STATUS.AVAILABLE} label={`${counts.a} free`} />
-                <Pill status={STATUS.OCCUPIED} label={`${counts.o} busy`} />
+              <div className="hidden sm:flex items-center gap-3 font-semibold">
+                <span className="text-mint">{counts.a} Free</span>
+                <span style={{ color: '#db0237' }}>{counts.o} Busy</span>
               </div>
               <ThemeToggle theme={theme} onCycle={cycleTheme} />
               <button
@@ -224,14 +224,6 @@ function ThemeToggle({ theme, onCycle }: { theme: Theme; onCycle: () => void }) 
   )
 }
 
-function Pill({ status, label }: { status: Status; label: string }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 font-semibold ${STATUS_STYLES[status]}`}>
-      {label}
-    </span>
-  )
-}
-
 function FilterChip({
   active,
   onClick,
@@ -254,7 +246,7 @@ function FilterChip({
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
         active
-          ? 'bg-navy text-white shadow dark:bg-white dark:text-navy'
+          ? 'bg-selected text-white shadow dark:bg-white dark:text-navy'
           : 'bg-transparent text-navy/70 ring-1 ring-navy/25 hover:ring-navy/60 hover:text-navy dark:text-white/70 dark:ring-white/25 dark:hover:ring-white/60 dark:hover:text-white'
       }`}
     >
