@@ -27,6 +27,9 @@ server-side and the app reads one cached aggregate.
   flash of the wrong theme.
 - **Per-connector chips** — stations with more than one connector show each
   connector's state individually.
+- **"Notify me when it's free"** — tap the bell on a busy charger and get a push
+  notification the moment it frees up, even with the app closed. Watches fire
+  once, never at night, and expire after 8 hours.
 - **Direct-mode fallback** — with `VITE_API_URL` empty the app calls ecarup
   from the browser exactly as it used to. Useful for local dev and as an
   escape hatch if the worker is down.
@@ -76,17 +79,40 @@ There is no test runner or linter configured; `npm run build` is the check.
 
 ### Configuration
 
-`.env` (committed on purpose — the worker URL is public, and the GitHub Pages
-build needs it at build time):
+`.env` (committed on purpose — both values are public, and the GitHub Pages
+build needs them at build time):
 
 ```
 VITE_API_URL=https://parking-status.<subdomain>.workers.dev/stations
+VITE_VAPID_PUBLIC_KEY=<public half of the VAPID pair>
 ```
 
-`VITE_API_URL` is baked into the bundle at build time, so changing it requires
-a rebuild/redeploy. Leave it empty to run in direct mode against ecarup.
+Both are baked into the bundle at build time, so changing either requires a
+rebuild/redeploy. Leave `VITE_API_URL` empty to run in direct mode against
+ecarup; leave `VITE_VAPID_PUBLIC_KEY` empty to ship without notifications.
+
+### Notifications setup
+
+One-time, to turn the bell on:
+
+```sh
+npx web-push generate-vapid-keys      # generates a keypair
+```
+
+- Public key → `.env` as `VITE_VAPID_PUBLIC_KEY` **and** `worker/wrangler.toml`
+  as `VAPID_PUBLIC_KEY`. It is public by design — the browser is handed it.
+- Private key → `cd worker && npx wrangler secret put VAPID_PRIVATE_KEY`.
+  Never commit it.
+
+Then redeploy both halves. On **iPhone and iPad the app must be installed**
+(Share → Add to Home Screen, iOS 16.4+) — Safari does not deliver push to a
+plain tab. Everywhere else a normal tab is enough.
 
 ## Worker
+
+`cd worker && npm test` runs the worker's test suite (`node:test`, no
+dependencies) — it covers the notification state machine and pins the push
+encryption to the RFC 8291 test vector.
 
 See [`worker/README.md`](worker/README.md) for one-time setup
 (`wrangler login` → `kv namespace create` → `deploy`), the response shape,
@@ -113,5 +139,6 @@ All in `localStorage`:
 | `parking-app:theme`         | `light` / `dark` (absent = follow the OS)              |
 | `parking-app:groupFilter`   | the active group chip (`''` = All)                     |
 | `parking-app:hiddenGroups`  | JSON array of groups hidden via Settings               |
+| `parking-app:watches`       | station ids with an armed notification (server is truth) |
 
 Default hidden groups: `Besucherplatz`, `Parkhaus EG`.

@@ -12,12 +12,13 @@ npm run build    # tsc -b (type-check) + production build to dist/
 npm run preview  # serve the production build
 ```
 
-There is **no test runner and no linter**. `npm run build` is the only
+The frontend has **no test runner and no linter**. `npm run build` is the only
 automated check — run it before declaring frontend work done.
 
 Worker commands run from `worker/`:
 
 ```sh
+npm test             # node:test — the worker DOES have tests, run them
 npx wrangler dev     # run the worker locally
 npx wrangler deploy  # deploy (also needed after any worker/ change)
 npx wrangler tail    # live logs
@@ -81,9 +82,11 @@ The pieces that need reading together:
   every 10 min year-round; `scheduled()` returns early off the hour between
   20:00–06:00 Europe/Zurich (checked via `Intl` on `event.scheduledTime` so
   DST stays correct).
-- **Free-plan limit: 50 subrequests per worker invocation**, which with
-  `stations.json` + the KV put caps the list at ~48 stations. Batch the
-  fetches in `refreshAll()` before going past that.
+- **Free-plan limit: 50 _external_ subrequests per worker invocation.** KV does
+  not count against it (Cloudflare-service subrequests get their own budget of
+  1000). `stations.json` + one fetch per station is the spend, and whatever is
+  left is the notification push budget — see below. Batch the fetches in
+  `refreshAll()` before the list approaches that.
 - **Status values are constants**, not string literals: `STATUS` /
   `STATE_CODE` and the class-name maps live in `src/consts/consts.ts`.
 - The `name` in `stations.json` is a fallback label only — the live `Name`
@@ -91,6 +94,48 @@ The pieces that need reading together:
 - `useStations` guards refreshes with an **effect-local** `refreshing` flag so
   a StrictMode remount can't block the next mount's first refresh. Keep it
   effect-local if you touch that effect.
+
+## Notifications
+
+Tap the bell on a busy card, get one push when it frees up. This is
+**server-side on purpose**: a client-side timer dies the moment the tab is
+backgrounded (instantly, on iOS), which is exactly when the notification
+matters. See `worker/README.md` for the operational side.
+
+- **`worker/src/push.js` is hand-rolled RFC 8291 + RFC 8292 crypto. Do not
+  replace it with an npm web-push package.** Every WebCrypto-compatible one on
+  npm still emits the legacy `aesgcm` draft encoding with a `WebPush`
+  authorization header. Apple's push service accepts only the RFC versions, so
+  those libraries fail silently on iPhones — the platform this app most needs.
+  `worker/test/push.test.mjs` pins the output to the RFC 8291 §5 test vector;
+  if you touch the crypto, that test is what tells you it still works.
+- **Notifications ride the existing 10-min refresh** — no second cron, no extra
+  ecarup polling. Detection latency is therefore 0–10 min. `notifyWatchers()`
+  diffs the fresh payload against the `state` key.
+- **Never notify without a baseline.** With no `state` key yet (first run after
+  deploy) it records one and returns; otherwise every occupied charger looks
+  like it just freed up.
+- **Night runs update the baseline but stay silent** (the `silent` argument).
+  Skipping them entirely would make the 06:00 run fire for everything that
+  emptied overnight.
+- **Watches are one-shot**: delivered → the `watch:` key is deleted. They also
+  carry an 8h `expirationTtl`, so forgotten ones expire with no KV write.
+- **The push budget is `50 - 1 - stations.length`** external subrequests.
+  Overflow goes to the `pending` key and retries next refresh — the state diff
+  can't find it again, because by then it is no longer a transition.
+- KV layout: `all` (board), `state` (last State per station, written only on
+  change), `sub:<subId>`, `watch:<stationId>:<subId>`, `pending`. Watch key
+  *names* carry both ids, so matching watchers costs a `list()` and no reads.
+- `/watch` is public and writable, unlike everything else here. The endpoint
+  host allowlist in `push.js` is what stops it being an open relay; the caps in
+  `handleWatch()` are what stop it exhausting the 1000 KV-writes/day the board
+  also depends on. CORS is not the boundary.
+- **`public/sw.js` must never grow a `fetch` handler or precaching.** It exists
+  only to receive pushes; a caching SW on GitHub Pages ships a stale bundle
+  forever.
+- iOS only exposes push to an installed PWA (Add to Home Screen, 16.4+).
+  `usePushWatch` detects that and reports `needs-install` rather than showing a
+  bell that cannot work.
 
 ## Styling
 

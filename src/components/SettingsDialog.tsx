@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import type { PushState } from '../hooks/usePushWatch'
 
 type Props = {
   open: boolean
@@ -6,9 +7,33 @@ type Props = {
   groups: string[]
   hidden: string[]
   onToggle: (group: string) => void
+  pushState: PushState
+  watchCount: number
+  pushError: string | null
 }
 
-export function SettingsDialog({ open, onClose, groups, hidden, onToggle }: Props) {
+// 'unconfigured' hides the section entirely — direct mode has no worker to
+// send from, so there is nothing the user could do about it.
+const PUSH_HINT: Record<Exclude<PushState, 'unconfigured'>, string> = {
+  ready:
+    'Tap the bell on a busy charger to be notified once when it frees up. Watches fire a single time and expire after 8 hours.',
+  blocked:
+    'Notifications are blocked for this site. Re-enable them in your browser settings, then reload.',
+  'needs-install':
+    'On iPhone and iPad, notifications only work once the app is installed: tap Share, then Add to Home Screen, and open it from there.',
+  unsupported: 'This browser does not support web notifications.',
+}
+
+export function SettingsDialog({
+  open,
+  onClose,
+  groups,
+  hidden,
+  onToggle,
+  pushState,
+  watchCount,
+  pushError,
+}: Props) {
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -60,6 +85,25 @@ export function SettingsDialog({ open, onClose, groups, hidden, onToggle }: Prop
             </label>
           ))}
         </div>
+
+        {pushState !== 'unconfigured' && (
+          <>
+            <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-navy/50 dark:text-white/50">
+              Notifications
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-navy/60 dark:text-white/60">
+              {PUSH_HINT[pushState]}
+            </p>
+            {pushState === 'ready' && watchCount > 0 && (
+              <p className="mt-1.5 text-xs font-semibold text-mint">
+                {watchCount} charger{watchCount === 1 ? '' : 's'} being watched
+              </p>
+            )}
+            {pushError && (
+              <p className="mt-1.5 text-xs text-busy dark:text-[#f08a92]">⚠ {pushError}</p>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
