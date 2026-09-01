@@ -2,7 +2,7 @@
 
 Cloudflare Worker that polls all ecarup stations every 10 minutes (cron
 trigger), stores the aggregate in KV, and serves it to the app from a single
-endpoint: `GET /stations`. See `docs/backend-options.md` for the rationale.
+endpoint: `GET /stations`. See the repo `README.md` for how the app consumes it.
 
 ## One-time setup
 
