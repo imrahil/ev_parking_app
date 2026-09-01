@@ -1,4 +1,9 @@
-import type { AllStationsResponse, StationApiResponse, StationRef } from './types'
+import type {
+  AllStationsResponse,
+  PushSubscriptionPayload,
+  StationApiResponse,
+  StationRef,
+} from './types'
 import { STATE_CODE, STATUS, type Status } from './consts/consts'
 
 const BASE = 'https://www.ecarup.com/api/stations'
@@ -30,4 +35,48 @@ export function stateToStatus(state: number | undefined): Status {
   if (state === STATE_CODE.AVAILABLE) return STATUS.AVAILABLE
   if (state === STATE_CODE.OCCUPIED) return STATUS.OCCUPIED
   return STATUS.UNKNOWN
+}
+
+// --- Notification watches (API mode only; the worker sends the pushes) ---
+
+const apiUrl = (path: string) => new URL(path, API_URL).toString()
+
+/**
+ * Stable id for a push subscription — SHA-256 of the endpoint, base64url.
+ * Mirrors `subId()` in worker/src/push.js; both sides must agree or a device
+ * can't look its own watches back up.
+ */
+export async function subIdFor(endpoint: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint))
+  return btoa(String.fromCharCode(...new Uint8Array(digest)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
+
+export async function armWatch(
+  subscription: PushSubscriptionPayload,
+  stationId: string,
+): Promise<void> {
+  const res = await fetch(apiUrl('watch'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subscription, stationId }),
+  })
+  if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? `HTTP ${res.status}`)
+}
+
+export async function disarmWatch(endpoint: string, stationId: string): Promise<void> {
+  const res = await fetch(apiUrl('watch'), {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint, stationId }),
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+}
+
+export async function fetchWatches(sub: string): Promise<string[]> {
+  const res = await fetch(apiUrl(`watches?sub=${encodeURIComponent(sub)}`))
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return ((await res.json()) as { stations: string[] }).stations
 }

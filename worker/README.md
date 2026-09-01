@@ -2,7 +2,12 @@
 
 Cloudflare Worker that polls all ecarup stations every 10 minutes (cron
 trigger), stores the aggregate in KV, and serves it to the app from a single
-endpoint: `GET /stations`. See the repo `README.md` for how the app consumes it.
+endpoint: `GET /stations`. It also sends the "your charger is free" Web Push
+notifications. See the repo `README.md` for how the app consumes it.
+
+```sh
+npm test   # node:test, no dependencies
+```
 
 ## One-time setup
 
@@ -17,7 +22,10 @@ npx wrangler login
 #    into wrangler.toml ([[kv_namespaces]] -> id)
 npx wrangler kv namespace create CACHE
 
-# 3. Deploy — the printed URL is the API endpoint
+# 3. Store the VAPID private key (see "Notifications" below)
+npx wrangler secret put VAPID_PRIVATE_KEY
+
+# 4. Deploy — the printed URL is the API endpoint
 npx wrangler deploy
 ```
 
@@ -44,6 +52,41 @@ Put that (plus `/stations`) into `VITE_API_URL` — see "Frontend" below.
 - The first request after a fresh deploy triggers an on-demand refresh, so the
   endpoint works before the first cron run.
 
+## Notification endpoints
+
+| Route | Purpose |
+| --- | --- |
+| `POST /watch` `{subscription, stationId}` | arm a one-shot watch |
+| `DELETE /watch` `{endpoint, stationId}` | disarm it |
+| `GET /watches?sub=<id>` | what this device has armed (survives a reinstall) |
+
+Writes are restricted to the origins in `ALLOWED_ORIGINS`, the subscription
+endpoint must be on a known push service, and each subscription may hold 5
+watches (200 subscriptions total). Those caps matter: the free plan allows
+1,000 KV writes/day and the board shares that budget.
+
+## Notifications
+
+`scheduled()` diffs each refresh against the `state` key and pushes to whoever
+watches a station that just went occupied → available. Watches are one-shot
+(delivered, then deleted) and carry an 8h TTL so forgotten ones expire for
+free. Night runs (20:00–06:00) update the baseline but never notify.
+
+Because notifications ride the existing 10-minute refresh, a freed charger is
+detected 0–10 minutes later. If that turns out to be too slow, the upgrade is a
+second cron that polls **only the watched stations** every minute — cheap,
+since there are rarely more than a handful.
+
+Setup: `npx web-push generate-vapid-keys`, then the public key into
+`wrangler.toml` (`VAPID_PUBLIC_KEY`) and the app's `.env`
+(`VITE_VAPID_PUBLIC_KEY`), and the private key into
+`npx wrangler secret put VAPID_PRIVATE_KEY`.
+
+`src/push.js` implements RFC 8291 / RFC 8292 by hand — the npm web-push
+libraries that run on Workers still emit the legacy `aesgcm` encoding, which
+Apple rejects, so they break iOS silently. `test/push.test.mjs` pins it to the
+RFC's own test vector.
+
 ## Frontend
 
 `src/api.ts` reads the endpoint from `VITE_API_URL` (see `.env`). When it is
@@ -59,6 +102,13 @@ useful for local dev and as an escape hatch if the worker is down.
   every 10 minutes, but between 20:00 and 06:00 Europe/Zurich the handler only
   refreshes on the full hour (overnight parking isn't allowed, so nobody needs
   fresh data then) — that window lives in `worker.js`, not in the cron.
-- **Limits** (free plan): 100k requests/day, 50 subrequests per invocation
-  (caps the station list at ~48 — batch the fetches in `refreshAll` if you
-  ever exceed that), KV 1k writes/day (cron uses 144).
+- **Debug a notification**: seed the baseline as occupied for a station that is
+  actually free, then run the cron —
+  `npx wrangler kv key put --binding CACHE state '{"<station-id>":2}'`.
+- **Limits** (free plan): 100k requests/day; **50 _external_ subrequests** per
+  invocation (KV is not external — it has its own 1000/invocation budget), so
+  `stations.json` + one fetch per station leaves the rest as the push budget,
+  and the station list is capped near 49; KV 1k writes/day (cron uses ~94, and
+  `state` is only written when something changed); 10ms CPU per invocation —
+  if `wrangler tail` ever reports "Exceeded CPU limit", move `notifyWatchers`
+  into its own invocation.

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStations } from './hooks/useStations'
+import { usePushWatch } from './hooks/usePushWatch'
 import { useTheme, type Theme } from './hooks/useTheme'
 import { StationCard } from './components/StationCard'
 import { SettingsDialog } from './components/SettingsDialog'
@@ -50,6 +51,7 @@ export function App() {
 
   const { refs, refsError, views } = useStations(REFRESH_MS)
   const { theme, cycleTheme } = useTheme()
+  const push = usePushWatch()
 
   const [, setNow] = useState(0)
 
@@ -179,7 +181,19 @@ export function App() {
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((v) => (
-            <StationCard key={v.ref.id} view={v} />
+            <StationCard
+              key={v.ref.id}
+              view={v}
+              watch={
+                push.state === 'ready'
+                  ? {
+                      armed: push.watches.includes(v.ref.id),
+                      busy: push.busy === v.ref.id,
+                      onToggle: () => push.toggle(v.ref.id),
+                    }
+                  : undefined
+              }
+            />
           ))}
         </div>
         <footer className="mt-10 text-center text-xs text-navy/50 dark:text-white/40">
@@ -199,6 +213,9 @@ export function App() {
             prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g],
           )
         }
+        pushState={push.state}
+        watchCount={push.watches.length}
+        pushError={push.error}
       />
     </div>
   )

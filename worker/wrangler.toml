@@ -3,7 +3,7 @@ main = "src/worker.js"
 compatibility_date = "2026-07-01"
 
 # Fires every 10 minutes; the scheduled handler skips most night runs
-# (20:00-06:00 Europe/Zurich refreshes only hourly)
+# (20:00-06:00 Europe/Zurich refreshes only hourly, and never notifies)
 [triggers]
 crons = ["*/10 * * * *"]
 
@@ -15,3 +15,15 @@ id = "d2ae45c3f2bc412cb6a952a8096315d4"
 # The worker reads the station list from GitHub Pages, so stations stay
 # editable on GitHub without redeploying the worker.
 STATIONS_JSON_URL = "https://imrahil.github.io/ev_parking_app/stations.json"
+
+# Origins allowed to arm/disarm notification watches. GET /stations stays open
+# to everyone; only the write endpoints are gated.
+ALLOWED_ORIGINS = "https://imrahil.github.io,http://localhost:5173,http://localhost:4173"
+
+# Web Push (VAPID). Generate the pair once with:
+#   npx web-push generate-vapid-keys
+# Public key goes here AND into .env as VITE_VAPID_PUBLIC_KEY (it is public by
+# design). Private key is a secret:
+#   npx wrangler secret put VAPID_PRIVATE_KEY
+VAPID_SUBJECT = "mailto:szczepanski.jaroslaw@gmail.com"
+VAPID_PUBLIC_KEY = "BCBN2UaX2RZoesiysIrZYAJHKLqULdCyd-lgveWflic5sceyCmpkV-q6d_zFPrLFhaoJnbBcs2LlRdXO-rO4ED8"

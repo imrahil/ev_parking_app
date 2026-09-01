@@ -39,3 +39,10 @@ export type StationView = {
   data: StationApiResponse | null
   fetchedAt: number | null
 }
+
+// PushSubscription.toJSON(), narrowed to what the worker stores and needs
+export type PushSubscriptionPayload = {
+  endpoint: string
+  expirationTime: number | null
+  keys: { p256dh: string; auth: string }
+}

@@ -8,6 +8,12 @@ import {
   type Status,
 } from '../consts/consts'
 
+export type WatchControl = {
+  armed: boolean
+  busy: boolean
+  onToggle: () => void
+}
+
 // Price-style status text, like the menu's blue «CHF 9.20»
 const STATUS_TEXT: Record<Status, string> = {
   [STATUS.AVAILABLE]: 'Free',
@@ -38,7 +44,7 @@ function timeAgo(ts: number | null): string {
   return `${h}h ago`
 }
 
-export function StationCard({ view }: { view: StationView }) {
+export function StationCard({ view, watch }: { view: StationView; watch?: WatchControl }) {
   const { ref, data, error, loading, fetchedAt } = view
   const overall = stateToStatus(data?.State)
   const name = data?.Name ?? ref.name
@@ -79,12 +85,35 @@ export function StationCard({ view }: { view: StationView }) {
         </div>
       )}
 
-      <div className="mt-4 text-xs text-navy/50 dark:text-white/50">
-        {loading && !data ? 'Loading…' : `Updated ${timeAgo(fetchedAt)}`}
-        {error && (
-          <span className="text-busy dark:text-[#f08a92] ml-2 truncate" title={error}>
-            ⚠ {error}
-          </span>
+      <div className="mt-4 flex items-center gap-2 text-xs text-navy/50 dark:text-white/50">
+        <span className="min-w-0 truncate">
+          {loading && !data ? 'Loading…' : `Updated ${timeAgo(fetchedAt)}`}
+          {error && (
+            <span className="text-busy dark:text-[#f08a92] ml-2" title={error}>
+              ⚠ {error}
+            </span>
+          )}
+        </span>
+
+        {watch && overall === STATUS.OCCUPIED && (
+          <button
+            onClick={watch.onToggle}
+            disabled={watch.busy}
+            aria-pressed={watch.armed}
+            title={
+              watch.armed
+                ? 'Watching - you get one notification when this charger frees up'
+                : 'Notify me once when this charger frees up'
+            }
+            className={`ml-auto shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition disabled:opacity-50 ${
+              watch.armed
+                ? CONNECTOR_STYLES[STATUS.AVAILABLE]
+                : 'bg-transparent ring-1 text-navy/60 ring-navy/25 hover:ring-navy/60 hover:text-navy dark:text-white/60 dark:ring-white/25 dark:hover:ring-white/60 dark:hover:text-white'
+            }`}
+          >
+            <span aria-hidden>🔔</span>
+            {watch.armed ? 'Watching' : 'Notify me'}
+          </button>
         )}
       </div>
     </div>
