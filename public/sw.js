@@ -20,7 +20,10 @@ self.addEventListener('push', (event) => {
       body: data.body ?? '',
       // Relative to the SW's scope, so this survives the /ev_parking_app/ subpath
       icon: './icons/icon-192.png',
-      badge: './icons/icon-192.png',
+      // Android draws the status-bar badge from this file's ALPHA channel only,
+      // as a flat silhouette. It must be a transparent PNG with just the glyph
+      // opaque — handing it an opaque icon gives you a solid white rectangle.
+      badge: './icons/badge-96.png',
       // One notification per station — a re-fired watch replaces, not stacks
       tag: data.tag,
       renotify: Boolean(data.tag),

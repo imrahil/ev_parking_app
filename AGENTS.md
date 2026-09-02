@@ -136,6 +136,15 @@ matters. See `worker/README.md` for the operational side.
 - iOS only exposes push to an installed PWA (Add to Home Screen, 16.4+).
   `usePushWatch` detects that and reports `needs-install` rather than showing a
   bell that cannot work.
+- **`badge` and `icon` in `showNotification()` are not interchangeable.** Android
+  draws the status-bar badge from the file's *alpha channel only*, as a flat
+  silhouette, so it needs `icons/badge-96.png` — a transparent PNG with just the
+  glyph opaque. Pointing it at an app icon (which has no alpha) renders a solid
+  white rectangle in the status bar, while the shade still looks correct.
+  `badge-96.png` is the plane lifted out of `icon-512.png` (threshold the cream
+  from the navy, drop the outer background, crop to the plane). The whole app
+  icon does not work at this size: without colour the station body is just a
+  filled rectangle and the cutouts vanish at 24dp.
 
 ## Styling
 
