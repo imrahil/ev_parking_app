@@ -73,9 +73,14 @@ npm install
 npm run dev      # start the Vite dev server
 npm run build    # type-check (tsc -b) + production build to dist/
 npm run preview  # preview the production build
+npm test         # unit + contract tests (Vitest)
+npm run e2e      # end-to-end tests (Playwright; first run: npx playwright install chromium)
+npm run coverage # unit-test coverage report
 ```
 
-There is no test runner or linter configured; `npm run build` is the check.
+CI (`.github/workflows/ci.yml`) runs the tests, the build, the worker tests
+and the e2e suite on every pull request, and the GitHub Pages deploy waits
+for it.
 
 ### Configuration
 
