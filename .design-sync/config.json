@@ -1,0 +1,32 @@
+{
+  "projectId": "bca110f4-b6cb-4051-96e1-aa362bca868a",
+  "shape": "package",
+  "pkg": "parking-app",
+  "globalName": "ParkingApp",
+  "buildCmd": "node .design-sync/build-css.mjs",
+  "srcDir": "src/components",
+  "tsconfig": "tsconfig.app.json",
+  "cssEntry": ".design-sync/.cache/tailwind.css",
+  "extraFonts": [
+    "node_modules/@fontsource-variable/libre-franklin/index.css"
+  ],
+  "entry": ".design-sync/entry.ts",
+  "componentSrcMap": {
+    "StationCard": "src/components/StationCard.tsx",
+    "SettingsDialog": "src/components/SettingsDialog.tsx"
+  },
+  "dtsPropsFor": {
+    "StationCard": "/** One charger's live state. Build it from a StationRef plus the ecarup API payload; data:null with loading:true renders the 'Loading…' state. */ view: { ref: { id: string; name: string; group?: string }; loading: boolean; error: string | null; data: { ID: string; Name: string; Description: string; State: number; ActivePower: number; IsDisabled: boolean; Connectors: { Id: number; Name: string; State: number; ActivePower: number; MaxPower: number }[] } | null; fetchedAt: number | null }; /** Bell control, shown only while the station is occupied (State 2). */ watch?: { armed: boolean; busy: boolean; onToggle: () => void }",
+    "SettingsDialog": "open: boolean; onClose: () => void; /** Station group names shown as checkboxes. */ groups: string[]; /** Groups currently unchecked. */ hidden: string[]; onToggle: (group: string) => void; /** 'unconfigured' hides the Notifications section. */ pushState: 'ready' | 'blocked' | 'needs-install' | 'unsupported' | 'unconfigured'; watchCount: number; pushError: string | null"
+  },
+  "overrides": {
+    "SettingsDialog": {
+      "cardMode": "single",
+      "primaryStory": "Open"
+    },
+    "StationCard": {
+      "cardMode": "column"
+    }
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}
