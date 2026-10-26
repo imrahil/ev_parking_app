@@ -32,8 +32,12 @@ export function useStations(refreshMs: number) {
     }
   }, [])
 
+  // API mode takes its list from every response, so the effect must not depend
+  // on it: the first response would re-run it and fire a second request
+  const directRefs = API_URL ? null : refs
+
   useEffect(() => {
-    if (!API_URL && refs.length === 0) return
+    if (directRefs?.length === 0) return
 
     const ac = new AbortController()
     // Effect-local so a StrictMode remount (which aborts this effect's fetch)
@@ -67,7 +71,7 @@ export function useStations(refreshMs: number) {
 
     const refreshDirect = async () => {
       await Promise.all(
-        refs.map(async (ref) => {
+        (directRefs ?? []).map(async (ref) => {
           try {
             const data = await fetchStation(ref.id, ac.signal)
             setViews((prev) => ({
@@ -120,7 +124,7 @@ export function useStations(refreshMs: number) {
       document.removeEventListener('visibilitychange', onVisible)
       ac.abort()
     }
-  }, [refs, refreshMs])
+  }, [directRefs, refreshMs])
 
   return { refs, refsError, views }
 }
