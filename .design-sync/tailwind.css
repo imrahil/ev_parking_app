@@ -1,0 +1,10 @@
+/* Design-sync stylesheet entry: compiles the app's Tailwind theme into a
+   static stylesheet for Claude Design. The theme itself lives in
+   src/index.css - this file only adds sources and a safelist. */
+@import "../src/index.css";
+
+@source "../src";
+
+/* Safelist the token utilities the design agent is told about in
+   conventions.md, so designs that use them resolve without a Tailwind build. */
+@source inline("{,dark:,hover:}{bg,text,border,ring}-{ink,navy,brand,mint,busy,paper,selected,white}{,/5,/10,/15,/25,/30,/40,/50,/60,/80,/90}");
