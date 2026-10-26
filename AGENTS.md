@@ -10,10 +10,38 @@ npm install
 npm run dev      # Vite dev server
 npm run build    # tsc -b (type-check) + production build to dist/
 npm run preview  # serve the production build
+npm test         # Vitest: api, hooks, components, App, worker contract
+npm run e2e      # Playwright: production build on a phone-sized Chromium
+npm run coverage # unit-test coverage report (text + coverage/index.html)
 ```
 
-The frontend has **no test runner and no linter**. `npm run build` is the only
-automated check — run it before declaring frontend work done.
+`npm test` and `npm run build` are the checks; run both before declaring
+frontend work done, and `npm run e2e` too when the change is user-visible.
+There is no linter. `.github/workflows/ci.yml` runs all of them, plus the
+worker tests, on every pull request and before every deploy.
+
+### Tests
+
+- **Unit (Vitest, `src/**/*.test.{ts,tsx}`)**: default node environment;
+  files that render or touch `localStorage` start with
+  `// @vitest-environment happy-dom` and use Testing Library. Fixtures
+  (station builders, `jsonResponse`) are in `src/test/fixtures.ts`;
+  `src/test/setup.ts` cleans up between tests (no vitest globals).
+- **Env-dependent modules**: `api.ts` and `usePushWatch.ts` read
+  `VITE_API_URL` / `VITE_VAPID_PUBLIC_KEY` at import. Tests switch modes with
+  `vi.stubEnv` + `vi.resetModules()` and then import Testing Library *and* the
+  module fresh (see `load()` in the hook tests) — a stale Testing Library
+  holds a different React and every hook call fails. Without stubbing, tests
+  run in API mode against the committed `.env`.
+- **Contract (`src/worker.test.ts`)**: the frontend client talks to the real
+  `worker/src/worker.js` in-process over a mock KV; only stations.json and
+  ecarup.com are faked. This is what keeps the `/stations` payload and
+  `subIdFor()`/`subId()` in step.
+- **E2E (`e2e/*.spec.ts`)**: `playwright.config.ts` builds the app into
+  `dist-e2e/` against a fake worker origin (`https://worker.e2e`) and serves it
+  with `vite preview`. The worker is not started — its data is live ecarup.
+  Each test answers that origin with `fakeWorker()` and, for notifications,
+  replaces the browser push stack with `fakePush()` (`e2e/helpers.ts`).
 
 Worker commands run from `worker/`:
 

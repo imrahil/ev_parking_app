@@ -8,6 +8,10 @@ dist-ssr
 .vite
 *.tsbuildinfo
 .claude/settings.local.json
+dist-e2e
+test-results
+playwright-report
+coverage
 
 # design-sync (claude.ai/design)
 .ds-sync/
