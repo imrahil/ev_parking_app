@@ -36,5 +36,6 @@
   { "id": "375d219b-fdb6-0591-1832-f181df680670", "name": "PP Aletschhorn 01", "group": "Aletschhorn" },
   { "id": "f0d477af-f0ff-fb1d-4a07-96180bd88d9f", "name": "PP Aletschhorn 02", "group": "Aletschhorn" },
   { "id": "3ff33933-27ab-761c-24ec-89c4652e0f3e", "name": "PP Aletschhorn 03", "group": "Aletschhorn" },
-  { "id": "40dc7d64-e0e0-a9f7-2d0e-d8ed6ef00d94", "name": "PP Aletschhorn 04", "group": "Aletschhorn" }
+  { "id": "40dc7d64-e0e0-a9f7-2d0e-d8ed6ef00d94", "name": "PP Aletschhorn 04", "group": "Aletschhorn" },
+  { "id": "8032e6cf-264c-7b47-61dc-df0e3a145b6a", "name": "Schwarzhorn 04 Nord", "group": "Schwarzhorn" }
 ]
