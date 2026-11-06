@@ -44,11 +44,17 @@ function timeAgo(ts: number | null): string {
   return `${h}h ago`
 }
 
+// ActivePower from ecarup is already in kW
+export function formatPower(kw: number): string {
+  return `${kw.toLocaleString('en', { maximumFractionDigits: 1 })} kW`
+}
+
 export function StationCard({ view, watch }: { view: StationView; watch?: WatchControl }) {
   const { ref, data, error, loading, fetchedAt } = view
   const overall = stateToStatus(data?.State)
   const name = data?.Name ?? ref.name
   const desc = data?.Description
+  const power = overall === STATUS.OCCUPIED && Number.isFinite(data?.ActivePower) ? data!.ActivePower : null
 
   const connectors = data?.Connectors ?? []
 
@@ -59,12 +65,25 @@ export function StationCard({ view, watch }: { view: StationView; watch?: WatchC
           <h3 className="text-base tracking-tight truncate">{name}</h3>
           {desc && <p className="text-xs text-navy/60 dark:text-white/60 mt-0.5 truncate">{desc}</p>}
         </div>
-        <span
-          className={`inline-flex shrink-0 items-center gap-1.5 text-sm font-bold tracking-wide ${STATUS_TEXT_STYLES[overall]}`}
-        >
-          <span className={`h-2 w-2 rounded-full ${STATUS_TEXT_DOT[overall]}`} />
-          {STATUS_TEXT[overall]}
-        </span>
+        <div className="flex shrink-0 flex-col items-end">
+          <span
+            className={`inline-flex items-center gap-1.5 text-sm font-bold tracking-wide ${STATUS_TEXT_STYLES[overall]}`}
+          >
+            <span className={`h-2 w-2 rounded-full ${STATUS_TEXT_DOT[overall]}`} />
+            {STATUS_TEXT[overall]}
+          </span>
+          {power !== null && (
+            <span
+              className="inline-flex items-center gap-0.5 text-xs text-navy/60 dark:text-white/60 mt-0.5 tabular-nums"
+              title="Current charging power"
+            >
+              <svg aria-hidden viewBox="0 0 24 24" className="h-3 w-3 fill-current">
+                <path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2z" />
+              </svg>
+              {formatPower(power)}
+            </span>
+          )}
+        </div>
       </div>
 
       {connectors.length > 1 && (

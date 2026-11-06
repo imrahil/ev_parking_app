@@ -47,6 +47,24 @@ describe('StationCard', () => {
     expect(screen.getByText(`Updated ${text}`)).toBeTruthy()
   })
 
+  it('shows the active power in kW under the Occupied label', () => {
+    const r = ref(1)
+    const { rerender } = render(<StationCard view={view(r, apiStation(r, BUSY, { ActivePower: 7.36 }))} />)
+    expect(screen.getByText('7.4 kW')).toBeTruthy()
+
+    rerender(<StationCard view={view(r, apiStation(r, BUSY, { ActivePower: 0 }))} />)
+    expect(screen.getByText('0 kW')).toBeTruthy()
+  })
+
+  it('hides the active power unless the station is occupied', () => {
+    const r = ref(1)
+    const { rerender } = render(<StationCard view={view(r, apiStation(r, FREE, { ActivePower: 3 }))} />)
+    expect(screen.queryByText(/kW$/)).toBeNull()
+
+    rerender(<StationCard view={view(r, apiStation(r, OFFLINE, { ActivePower: 3 }))} />)
+    expect(screen.queryByText(/kW$/)).toBeNull()
+  })
+
   it('shows a fetch error next to the (stale) update time', () => {
     const r = ref(1)
     render(<StationCard view={view(r, apiStation(r, FREE), { error: 'HTTP 503' })} />)
