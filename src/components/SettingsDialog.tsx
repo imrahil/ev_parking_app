@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import type { PushState } from '../hooks/usePushWatch'
+import type { PushState } from '../types'
 import { CARD_SURFACE } from '../consts/consts'
 
 type Props = {

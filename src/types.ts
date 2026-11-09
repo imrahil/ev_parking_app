@@ -60,6 +60,14 @@ export type StationView = {
   fetchedAt: number | null
 }
 
+// What the app can do about notifications on this device
+export type PushState =
+  | 'ready' // usable; permission may still need asking
+  | 'blocked' // permission denied — only recoverable in browser settings
+  | 'needs-install' // iOS: push only exists once added to the Home Screen
+  | 'unsupported'
+  | 'unconfigured' // direct mode, or no VAPID key baked in — feature is off
+
 // PushSubscription.toJSON(), narrowed to what the worker stores and needs
 export type PushSubscriptionPayload = {
   endpoint: string

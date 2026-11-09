@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { API_URL, armWatch, disarmWatch, fetchWatches, subIdFor } from '../api'
+import { armWatch, disarmWatch, fetchWatches, subIdFor } from '../api'
 import { errorMessage } from '../format'
+import { currentSubscription, detectPushState, subscribeToPush } from '../push'
 import { readStringArray } from '../storage'
-import type { PushSubscriptionPayload } from '../types'
+import type { PushState, PushSubscriptionPayload } from '../types'
 
-const VAPID_PUBLIC_KEY: string = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? ''
 const WATCHES_KEY = 'parking-app:watches'
 
 // Watches only vanish server-side when the cron delivers them (every 10 min)
@@ -13,55 +13,8 @@ const WATCHES_KEY = 'parking-app:watches'
 // budget, the same one arming needs.
 export const FOCUS_SYNC_MS = 10 * 60 * 1000
 
-export type PushState =
-  | 'ready' // usable; permission may still need asking
-  | 'blocked' // permission denied — only recoverable in browser settings
-  | 'needs-install' // iOS: push only exists once added to the Home Screen
-  | 'unsupported'
-  | 'unconfigured' // direct mode, or no VAPID key baked in — feature is off
-
-function detect(): PushState {
-  if (!API_URL || !VAPID_PUBLIC_KEY) return 'unconfigured'
-
-  if ('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
-    return Notification.permission === 'denied' ? 'blocked' : 'ready'
-  }
-
-  // iOS hides PushManager entirely in a Safari tab; it appears only in an
-  // installed web app. Worth saying so rather than showing a dead button.
-  const ios =
-    /iP(hone|ad|od)/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  const installed = window.matchMedia('(display-mode: standalone)').matches
-  return ios && !installed ? 'needs-install' : 'unsupported'
-}
-
-function urlBase64ToUint8Array(base64: string): Uint8Array {
-  const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
-  const raw = atob(padded.replace(/-/g, '+').replace(/_/g, '/'))
-  return Uint8Array.from(raw, (c) => c.charCodeAt(0))
-}
-
-/** The SW is registered lazily — nobody who ignores notifications gets one. */
-async function subscribe(): Promise<PushSubscription> {
-  const reg = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
-  await navigator.serviceWorker.ready
-  const existing = await reg.pushManager.getSubscription()
-  if (existing) return existing
-  return reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
-  })
-}
-
-async function currentSubscription(): Promise<PushSubscription | null> {
-  if (!('serviceWorker' in navigator)) return null
-  const reg = await navigator.serviceWorker.getRegistration()
-  return (await reg?.pushManager.getSubscription()) ?? null
-}
-
 export function usePushWatch() {
-  const [state, setState] = useState<PushState>(() => detect())
+  const [state, setState] = useState<PushState>(() => detectPushState())
   const [watches, setWatches] = useState<string[]>(() => readStringArray(WATCHES_KEY))
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -134,7 +87,7 @@ export function usePushWatch() {
           setState(permission === 'denied' ? 'blocked' : 'ready')
           return
         }
-        const sub = await subscribe()
+        const sub = await subscribeToPush()
         await armWatch(sub.toJSON() as PushSubscriptionPayload, stationId)
         setWatches((prev) => (prev.includes(stationId) ? prev : [...prev, stationId]))
       }),

@@ -27,7 +27,7 @@ worker tests, on every pull request and before every deploy.
   `// @vitest-environment happy-dom` and use Testing Library. Fixtures
   (station builders, `jsonResponse`) are in `src/test/fixtures.ts`;
   `src/test/setup.ts` cleans up between tests (no vitest globals).
-- **Env-dependent modules**: `api.ts` and `usePushWatch.ts` read
+- **Env-dependent modules**: `api.ts` and `push.ts` read
   `VITE_API_URL` / `VITE_VAPID_PUBLIC_KEY` at import. Tests switch modes with
   `vi.stubEnv` + `vi.resetModules()` and then import Testing Library *and* the
   module fresh (see `load()` in the hook tests) — a stale Testing Library
@@ -92,7 +92,12 @@ The pieces that need reading together:
   modes (below). Polls every `REFRESH_MS` and on `visibilitychange`.
 - **`src/api.ts`** — `fetchAllStations()` (worker), `fetchStation()` (direct),
   `loadStations()` (stations.json), and `stateToStatus()`.
-- **`src/App.tsx`** — grid, group filter chips, counts, settings dialog wiring.
+- **`src/App.tsx`** — wires the hooks to the header, the card grid and the
+  settings dialog. What the board shows (visible groups, filtered cards,
+  free/busy counts) is worked out by the pure `summariseBoard()` in
+  `src/board.ts`.
+- **`src/push.ts`** — browser push plumbing (capability detection, service
+  worker subscription); `src/hooks/usePushWatch.ts` holds the state on top.
 
 ### Two modes
 

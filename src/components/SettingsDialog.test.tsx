@@ -2,7 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { SettingsDialog } from './SettingsDialog'
-import type { PushState } from '../hooks/usePushWatch'
+import type { PushState } from '../types'
 
 function setup(patch: Partial<Parameters<typeof SettingsDialog>[0]> = {}) {
   const props = {
