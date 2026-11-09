@@ -1,5 +1,7 @@
 import { formatPower } from '../format'
 
+// Matches HISTORY_MS in worker/src/worker.js, which trims the history it serves
+// to the same 12 h. Change both, or the chart is half empty or drops samples.
 export const HISTORY_WINDOW_MS = 12 * 60 * 60 * 1000
 // Hourly night samples are the sparsest the worker writes; a longer hole means
 // it was down, and drawing a line across it would invent data
@@ -9,6 +11,9 @@ const W = 100
 const H = 24
 
 type Point = { x: number; y: number }
+
+/** Where time `t` falls on the x axis of a window starting at `start`. */
+const toX = (t: number, start: number) => Math.min(W, ((t - start) / HISTORY_WINDOW_MS) * W)
 
 /**
  * Splits a series into drawable runs, breaking at null readings and at long
@@ -37,7 +42,7 @@ export function sparklineSegments(
     if (t - lastT > MAX_GAP_MS) flush()
     lastT = t
     run.push({
-      x: Math.min(W, ((t - start) / HISTORY_WINDOW_MS) * W),
+      x: toX(t, start),
       y: H - (Math.max(0, v) / max) * H,
     })
   })
@@ -66,7 +71,7 @@ export function occupiedSpans(times: number[], occupied: (number | null)[], now:
       current = null
       return
     }
-    const x = Math.min(W, ((t - start) / HISTORY_WINDOW_MS) * W)
+    const x = toX(t, start)
     if (current && t - lastT <= MAX_GAP_MS) current.x1 = x
     else spans.push((current = { x0: x, x1: x }))
     lastT = t
