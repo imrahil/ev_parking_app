@@ -13,6 +13,8 @@ import {
 export type PowerSeries = {
   times: number[]
   values: (number | null)[]
+  // 1 = a car was plugged in at that sample
+  occupied?: (number | null)[]
 }
 
 export type WatchControl = {
@@ -116,7 +118,7 @@ export function StationCard({
         </div>
       )}
 
-      {history && <PowerSparkline times={history.times} values={history.values} />}
+      {history && <PowerSparkline times={history.times} values={history.values} occupied={history.occupied} />}
 
       <div className="mt-4 flex items-center gap-2 text-xs text-navy/50 dark:text-white/50">
         <span className="min-w-0 truncate">

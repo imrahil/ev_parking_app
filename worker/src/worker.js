@@ -8,6 +8,7 @@ const HISTORY_KEY = 'history' // charging power over the last HISTORY_MS, all st
 const HISTORY_MS = 12 * 60 * 60 * 1000
 
 const STATE_AVAILABLE = 1
+const STATE_OCCUPIED = 2
 
 // Night window (Europe/Zurich): only hourly refreshes between these hours, and
 // no notifications at all. Overnight parking isn't allowed, so nobody needs
@@ -69,8 +70,9 @@ async function refreshAll(env) {
 
 /**
  * Appends this refresh's ActivePower (kW) to the rolling history and drops
- * samples older than HISTORY_MS. Shape: { t: [ms…], p: { [stationId]: [kW|null…] } }
- * with every p array aligned to t; null = the station's fetch failed (a gap,
+ * samples older than HISTORY_MS. Shape: { t: [ms…], p: { [stationId]: [kW|null…] },
+ * s: { [stationId]: [1|0|null…] } } — s is "a car is plugged in" — with every
+ * series aligned to t; null = the station's fetch failed (a gap,
  * not a zero).
  *
  * One blob, one write per refresh (~94/day) — per-sample keys would blow the
@@ -79,21 +81,23 @@ async function refreshAll(env) {
  */
 export function appendHistory(prev, payload) {
   const old = prev && Array.isArray(prev.t) && prev.p ? prev : { t: [], p: {} }
+  const oldS = old.s ?? {} // history written before `s` existed has none
   const cutoff = payload.updatedAt - HISTORY_MS
   const first = old.t.findIndex((t) => t >= cutoff)
   const start = first === -1 ? old.t.length : first
 
   const kept = old.t.length - start
+  // A station new to the list (or missing from older history) is padded with gaps
+  const extend = (column, sample) => [...(column ? column.slice(start) : new Array(kept).fill(null)), sample]
+
   const p = {}
+  const occupied = {}
   for (const s of payload.stations) {
     const power = s.data?.ActivePower
-    const sample = Number.isFinite(power) ? Math.round(power * 10) / 10 : null
-    const column = old.p[s.ref.id]
-    // A station new to the list (or missing from older history) is padded with gaps
-    const series = column ? column.slice(start) : new Array(kept).fill(null)
-    p[s.ref.id] = [...series, sample]
+    p[s.ref.id] = extend(old.p[s.ref.id], Number.isFinite(power) ? Math.round(power * 10) / 10 : null)
+    occupied[s.ref.id] = extend(oldS[s.ref.id], s.data ? Number(s.data.State === STATE_OCCUPIED) : null)
   }
-  return { t: [...old.t.slice(start), payload.updatedAt], p }
+  return { t: [...old.t.slice(start), payload.updatedAt], p, s: occupied }
 }
 
 async function recordHistory(env, payload) {
@@ -336,7 +340,7 @@ export default {
     }
 
     if (url.pathname === '/history' && ['GET', 'HEAD'].includes(request.method)) {
-      const body = (await env.CACHE.get(HISTORY_KEY)) ?? JSON.stringify({ t: [], p: {} })
+      const body = (await env.CACHE.get(HISTORY_KEY)) ?? JSON.stringify({ t: [], p: {}, s: {} })
       return new Response(body, {
         headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' },
       })

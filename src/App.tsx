@@ -184,7 +184,9 @@ export function App() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((v) => (
             <StationCard
-              history={history ? { times: history.t, values: history.p[v.ref.id] ?? [] } : undefined}
+              history={history
+                  ? { times: history.t, values: history.p[v.ref.id] ?? [], occupied: history.s?.[v.ref.id] }
+                  : undefined}
               key={v.ref.id}
               view={v}
               watch={

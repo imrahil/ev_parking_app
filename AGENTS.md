@@ -127,8 +127,9 @@ The pieces that need reading together:
 
 Each card shows a 12 h sparkline of `ActivePower`. The cron appends one sample
 per refresh to the single KV key `history` (`appendHistory()` in `worker.js`:
-`{ t: [ms…], p: { [stationId]: [kW|null…] } }`, series aligned to `t`, `null` =
-failed fetch) and trims to 12 h. **Keep it one blob**: per-sample or
+`{ t: [ms…], p: { [stationId]: [kW|null…] }, s: { [stationId]: [1|0|null…] } }`,
+series aligned to `t`, `null` = failed fetch; `s` = a car is plugged in, which
+the chart shades because idle-connected reads 0 kW just like a free bay) and trims to 12 h. **Keep it one blob**: per-sample or
 per-station keys would burn the free plan's 1000 KV writes/day. It is served by
 `GET /history` (separate from `/stations` so the 60 s board poll stays small),
 fetched by `src/hooks/useHistory.ts`. Direct mode has no history and renders no

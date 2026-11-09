@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { HISTORY_WINDOW_MS, PowerSparkline, sparklineSegments } from './PowerSparkline'
+import { HISTORY_WINDOW_MS, occupiedSpans, PowerSparkline, sparklineSegments } from './PowerSparkline'
 
 const NOW = 100 * HISTORY_WINDOW_MS
 const MIN = 60_000
@@ -29,7 +29,49 @@ describe('sparklineSegments', () => {
   })
 })
 
+describe('occupiedSpans', () => {
+  const at = (...mins: number[]) => mins.map((m) => NOW - m * MIN)
+
+  it('merges consecutive plugged-in samples into one span', () => {
+    const spans = occupiedSpans(at(40, 30, 20, 10), [1, 1, 1, 0], NOW)
+    expect(spans).toHaveLength(1)
+    expect(spans[0].x0).toBeCloseTo(((HISTORY_WINDOW_MS - 40 * MIN) / HISTORY_WINDOW_MS) * 100)
+    expect(spans[0].x1).toBeCloseTo(((HISTORY_WINDOW_MS - 20 * MIN) / HISTORY_WINDOW_MS) * 100)
+  })
+
+  it('splits at a free sample, a failed fetch and a long gap', () => {
+    expect(occupiedSpans(at(50, 40, 30, 20), [1, 0, 1, 1], NOW)).toHaveLength(2)
+    expect(occupiedSpans(at(50, 40, 30, 20), [1, null, 1, 1], NOW)).toHaveLength(2)
+    expect(occupiedSpans(at(300, 10), [1, 1], NOW)).toHaveLength(2)
+  })
+
+  it('gives a single sample a visible width, and ignores old ones', () => {
+    const [s] = occupiedSpans(at(10), [1], NOW)
+    expect(s.x1 - s.x0).toBeGreaterThan(0)
+    expect(occupiedSpans([NOW - HISTORY_WINDOW_MS - MIN], [1], NOW)).toEqual([])
+  })
+
+  it('is empty without occupancy data (history from before it was recorded)', () => {
+    expect(occupiedSpans(at(10, 20), [], NOW)).toEqual([])
+  })
+})
+
 describe('PowerSparkline', () => {
+  it('shades plugged-in periods and says so in the legend', () => {
+    const { container } = render(
+      <PowerSparkline now={NOW} times={[NOW - 20 * MIN, NOW - 10 * MIN]} values={[0, 0]} occupied={[1, 1]} />,
+    )
+    expect(screen.getByText('Plugged in')).toBeTruthy()
+    expect(container.querySelectorAll('rect')).toHaveLength(1)
+    expect(screen.getByRole('img').getAttribute('aria-label')).toContain('plugged in')
+  })
+
+  it('shows no legend or band when nobody was plugged in', () => {
+    const { container } = render(<PowerSparkline now={NOW} times={[NOW - 10 * MIN]} values={[0]} occupied={[0]} />)
+    expect(screen.queryByText('Plugged in')).toBeNull()
+    expect(container.querySelectorAll('rect')).toHaveLength(0)
+  })
+
   it('labels the peak', () => {
     render(<PowerSparkline now={NOW} times={[NOW - 20 * MIN, NOW - 10 * MIN]} values={[3.6, 7.4]} />)
     expect(screen.getByText('Peak 7.4 kW')).toBeTruthy()
