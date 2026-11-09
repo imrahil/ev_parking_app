@@ -49,6 +49,30 @@ describe('App', () => {
     expect(within(chip(/^Weisshorn/)).getByText('0/2')).toBeTruthy()
   })
 
+  it('header counts follow the active filter', async () => {
+    serve()
+    await renderApp()
+
+    expect(screen.getByText('2 Free')).toBeTruthy()
+    expect(screen.getByText('2 Busy')).toBeTruthy()
+
+    fireEvent.click(chip(/^Weisshorn/))
+    expect(screen.getByText('0 Free')).toBeTruthy()
+    expect(screen.getByText('1 Busy')).toBeTruthy()
+  })
+
+  it('header counts are zero for a stored filter whose group no longer exists', async () => {
+    localStorage.setItem('parking-app:groupFilter', 'Gone')
+    serve()
+    render(<App />)
+
+    // The chips only get their stats once the board has loaded
+    await waitFor(() => expect(within(chip(/^All/)).getByText('2/5')).toBeTruthy())
+    expect(cardNames()).toEqual([])
+    expect(screen.getByText('0 Free')).toBeTruthy()
+    expect(screen.getByText('0 Busy')).toBeTruthy()
+  })
+
   it('filters by group, toggles back to All, and remembers the filter', async () => {
     serve()
     await renderApp()

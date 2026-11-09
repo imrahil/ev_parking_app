@@ -2,53 +2,24 @@ import { useEffect, useMemo, useState } from 'react'
 import { useStations } from './hooks/useStations'
 import { useHistory } from './hooks/useHistory'
 import { usePushWatch } from './hooks/usePushWatch'
-import { useTheme, type Theme } from './hooks/useTheme'
+import { useTheme } from './hooks/useTheme'
+import { useGroupFilter } from './hooks/useGroupFilter'
 import { StationCard } from './components/StationCard'
 import { SettingsDialog } from './components/SettingsDialog'
+import { ThemeToggle } from './components/ThemeToggle'
+import { FilterChip } from './components/FilterChip'
 import { stateToStatus } from './api'
 import { OUTLINE_PILL, STATUS } from './consts/consts'
-
-const FILTER_KEY = 'parking-app:groupFilter'
-const HIDDEN_KEY = 'parking-app:hiddenGroups'
-const DEFAULT_HIDDEN = ['Besucherplatz', 'Parkhaus EG']
 
 // The worker refreshes from ecarup every 10 min; polling its cache every
 // minute keeps the board at most ~1 min behind that
 const REFRESH_MS = 60_000
 
-function readStoredFilter(): string {
-  return localStorage.getItem(FILTER_KEY) ?? ''
-}
-
-function readStoredHidden(): string[] {
-  const raw = localStorage.getItem(HIDDEN_KEY)
-  if (!raw) return DEFAULT_HIDDEN
-  try {
-    const v: unknown = JSON.parse(raw)
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : DEFAULT_HIDDEN
-  } catch {
-    return DEFAULT_HIDDEN
-  }
-}
+type GroupStats = { free: number; busy: number; total: number }
 
 export function App() {
-  const [activeGroup, setActiveGroup] = useState<string>(() => readStoredFilter())
-
-  useEffect(() => {
-    localStorage.setItem(FILTER_KEY, activeGroup)
-  }, [activeGroup])
-
-  const [hiddenGroups, setHiddenGroups] = useState<string[]>(() => readStoredHidden())
+  const { activeGroup, hiddenGroups, showAll, toggleGroup, toggleHidden } = useGroupFilter()
   const [settingsOpen, setSettingsOpen] = useState(false)
-
-  useEffect(() => {
-    localStorage.setItem(HIDDEN_KEY, JSON.stringify(hiddenGroups))
-  }, [hiddenGroups])
-
-  // If the currently filtered group gets hidden, fall back to "All"
-  useEffect(() => {
-    if (activeGroup && hiddenGroups.includes(activeGroup)) setActiveGroup('')
-  }, [hiddenGroups, activeGroup])
 
   const { refs, refsError, views } = useStations(REFRESH_MS)
   const { theme, cycleTheme } = useTheme()
@@ -86,35 +57,26 @@ export function App() {
     return visibleOrdered.filter((v) => v.ref.group === activeGroup)
   }, [visibleOrdered, activeGroup])
 
-  const counts = useMemo(() => {
-    let a = 0, o = 0
-    for (const v of filtered) {
-      const s = stateToStatus(v.data?.State)
-      if (s === STATUS.AVAILABLE) a++
-      else if (s === STATUS.OCCUPIED) o++
-    }
-    return { a, o }
-  }, [filtered])
-
+  // One pass over the visible stations feeds both the chips and the header
   const groupStats = useMemo(() => {
-    const stats: Record<string, { free: number; total: number }> = {}
-    for (const g of visibleGroups) stats[g] = { free: 0, total: 0 }
-    let allFree = 0
+    const stats: Record<string, GroupStats> = {}
+    for (const g of visibleGroups) stats[g] = { free: 0, busy: 0, total: 0 }
+    const all: GroupStats = { free: 0, busy: 0, total: 0 }
     for (const v of visibleOrdered) {
-      const g = v.ref.group
-      const free = stateToStatus(v.data?.State) === STATUS.AVAILABLE
-      if (free) allFree++
-      if (g && stats[g]) {
-        stats[g].total++
-        if (free) stats[g].free++
+      const status = stateToStatus(v.data?.State)
+      const group = v.ref.group ? stats[v.ref.group] : undefined
+      for (const bucket of group ? [all, group] : [all]) {
+        bucket.total++
+        if (status === STATUS.AVAILABLE) bucket.free++
+        else if (status === STATUS.OCCUPIED) bucket.busy++
       }
     }
-    return { stats, all: { free: allFree, total: visibleOrdered.length } }
+    return { stats, all }
   }, [visibleOrdered, visibleGroups])
 
-  const toggleGroup = (g: string) => {
-    setActiveGroup((prev) => (prev === g ? '' : g))
-  }
+  // The header counts follow the active filter. A stored filter naming a group
+  // that no longer exists matches no station, hence the fallback to zero.
+  const counts: GroupStats | undefined = activeGroup ? groupStats.stats[activeGroup] : groupStats.all
 
   return (
     <div className="min-h-full">
@@ -134,8 +96,8 @@ export function App() {
             </div>
             <div className="ml-auto flex shrink-0 items-center gap-2 text-xs">
               <div className="hidden sm:flex items-center gap-3 font-semibold">
-                <span className="text-mint">{counts.a} Free</span>
-                <span className="text-busy">{counts.o} Busy</span>
+                <span className="text-mint">{counts?.free ?? 0} Free</span>
+                <span className="text-busy">{counts?.busy ?? 0} Busy</span>
               </div>
               <ThemeToggle theme={theme} onCycle={cycleTheme} />
               <button
@@ -152,7 +114,7 @@ export function App() {
           <div className="mt-4 flex flex-wrap gap-1.5">
             <FilterChip
               active={!activeGroup}
-              onClick={() => setActiveGroup('')}
+              onClick={showAll}
               label="All"
               stats={groupStats.all}
             />
@@ -213,71 +175,11 @@ export function App() {
         onClose={() => setSettingsOpen(false)}
         groups={groups}
         hidden={hiddenGroups}
-        onToggle={(g) =>
-          setHiddenGroups((prev) =>
-            prev.includes(g) ? prev.filter((x) => x !== g) : [...prev, g],
-          )
-        }
+        onToggle={toggleHidden}
         pushState={push.state}
         watchCount={push.watches.length}
         pushError={push.error}
       />
     </div>
-  )
-}
-
-const THEME_META: Record<Theme, { icon: string; label: string }> = {
-  auto: { icon: '◐', label: 'Auto' },
-  light: { icon: '☀', label: 'Light' },
-  dark: { icon: '☾', label: 'Dark' },
-}
-
-function ThemeToggle({ theme, onCycle }: { theme: Theme; onCycle: () => void }) {
-  const { icon, label } = THEME_META[theme]
-  return (
-    <button
-      onClick={onCycle}
-      title={`Theme: ${label} — click to change`}
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${OUTLINE_PILL}`}
-    >
-      <span aria-hidden>{icon}</span>
-      <span className="hidden sm:inline">{label}</span>
-    </button>
-  )
-}
-
-function FilterChip({
-  active,
-  onClick,
-  label,
-  stats,
-}: {
-  active: boolean
-  onClick: () => void
-  label: string
-  stats?: { free: number; total: number }
-}) {
-  const hasStats = stats && stats.total > 0
-  const badgeColor = active
-    ? 'bg-white/25 text-white dark:bg-navy/15 dark:text-navy'
-    : hasStats && stats.free > 0
-      ? 'bg-mint/15 text-mint'
-      : 'bg-navy/10 text-navy/50 dark:bg-white/10 dark:text-white/50'
-  return (
-    <button
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
-        active
-          ? 'bg-selected text-white shadow dark:bg-white dark:text-navy'
-          : OUTLINE_PILL
-      }`}
-    >
-      <span>{label}</span>
-      {hasStats && (
-        <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${badgeColor}`}>
-          {stats.free}/{stats.total}
-        </span>
-      )}
-    </button>
   )
 }
