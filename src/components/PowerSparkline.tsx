@@ -79,6 +79,25 @@ export function occupiedSpans(times: number[], occupied: (number | null)[], now:
   return spans.map((s) => (s.x1 - s.x0 < MIN_SPAN_W ? { x0: s.x0, x1: s.x0 + MIN_SPAN_W } : s))
 }
 
+const HOUR_MS = 60 * 60 * 1000
+// Ticks hang below the baseline (the svg is overflow-visible) so they never
+// sit on top of the data
+const TICK_H = 3
+
+/**
+ * x of every full clock hour in the 12 h window ending at `now`, oldest first.
+ * Clock hours in the viewer's time zone, not hours-ago, so a tick is 14:00,
+ * 15:00, … and the ticks slide left as time passes.
+ */
+export function hourTicks(now: number): number[] {
+  const start = now - HISTORY_WINDOW_MS
+  const top = new Date(now)
+  top.setMinutes(0, 0, 0)
+  const ticks: number[] = []
+  for (let t = top.getTime(); t >= start; t -= HOUR_MS) ticks.unshift(toX(t, start))
+  return ticks
+}
+
 const line = (pts: Point[]) => pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')
 
 export function PowerSparkline({
@@ -97,6 +116,7 @@ export function PowerSparkline({
   const peak = inWindow.length ? Math.max(...inWindow) : 0
   const runs = sparklineSegments(times, values, now, Math.max(peak, 1))
   const spans = occupiedSpans(times, occupied, now)
+  const ticks = hourTicks(now)
 
   return (
     <div className="mt-4">
@@ -140,6 +160,11 @@ export function PowerSparkline({
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
         />
+        <g data-hour-ticks aria-hidden stroke="currentColor" strokeOpacity="0.35" strokeWidth="1">
+          {ticks.map((x) => (
+            <line key={x} x1={x} x2={x} y1={H} y2={H + TICK_H} vectorEffect="non-scaling-stroke" />
+          ))}
+        </g>
         {runs.map((pts, i) =>
           pts.length === 1 ? (
             <circle key={i} cx={pts[0].x} cy={pts[0].y} r="1" fill="currentColor" />
