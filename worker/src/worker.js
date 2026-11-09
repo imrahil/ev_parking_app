@@ -32,6 +32,9 @@ const MAX_PUSHES_PER_RUN = 3
 
 const WATCH_TTL_S = 8 * 60 * 60 // a forgotten watch expires itself, no KV write
 const SUB_TTL_S = 90 * 24 * 60 * 60
+// An unchanged subscription is rewritten (to push its TTL out) at most this
+// often, so re-arming costs no KV write in the common case.
+const SUB_REFRESH_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_WATCHES_PER_SUB = 5
 const MAX_SUBS = 200
 
@@ -278,7 +281,7 @@ async function handleWatch(request, env, cors) {
   if (!isSubscription(subscription)) return json({ error: 'Invalid subscription' }, 400, cors)
 
   const id = await subId(subscription.endpoint)
-  const existing = await env.CACHE.get(`sub:${id}`)
+  const { value: existing, metadata } = await env.CACHE.getWithMetadata(`sub:${id}`)
 
   // Caps, because these writes are public and the free plan allows only
   // 1000 KV writes/day — shared with the board itself.
@@ -288,12 +291,28 @@ async function handleWatch(request, env, cors) {
   }
   const { keys: watches } = await env.CACHE.list({ prefix: 'watch:' })
   const mine = watches.filter((k) => k.name.endsWith(`:${id}`))
-  if (mine.length >= MAX_WATCHES_PER_SUB && !mine.some((k) => k.name === `watch:${stationId}:${id}`)) {
+  const watchKey = `watch:${stationId}:${id}`
+  const armed = mine.find((k) => k.name === watchKey)
+  if (mine.length >= MAX_WATCHES_PER_SUB && !armed) {
     return json({ error: 'Too many watches' }, 429, cors)
   }
 
-  await env.CACHE.put(`sub:${id}`, JSON.stringify(subscription), { expirationTtl: SUB_TTL_S })
-  await env.CACHE.put(`watch:${stationId}:${id}`, '', { expirationTtl: WATCH_TTL_S })
+  // Skip writes that change nothing. The caps above bound how many keys exist,
+  // not how many writes happen — without this, a client re-arming in a loop
+  // burns the 1000 writes/day the cron needs to keep the board fresh.
+  const now = Date.now()
+  const value = JSON.stringify(subscription)
+  const subFresh = existing === value && now - (metadata?.at ?? 0) < SUB_REFRESH_MS
+  if (!subFresh) {
+    await env.CACHE.put(`sub:${id}`, value, { expirationTtl: SUB_TTL_S, metadata: { at: now } })
+  }
+
+  // An armed watch keeps its original expiry; re-arming does not extend it
+  if (armed) {
+    const expiresIn = armed.expiration ? Math.max(0, armed.expiration - Math.floor(now / 1000)) : WATCH_TTL_S
+    return json({ ok: true, sub: id, expiresIn }, 200, cors)
+  }
+  await env.CACHE.put(watchKey, '', { expirationTtl: WATCH_TTL_S })
   return json({ ok: true, sub: id, expiresIn: WATCH_TTL_S }, 200, cors)
 }
 

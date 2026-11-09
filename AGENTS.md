@@ -172,7 +172,11 @@ matters. See `worker/README.md` for the operational side.
 - `/watch` is public and writable, unlike everything else here. The endpoint
   host allowlist in `push.js` is what stops it being an open relay; the caps in
   `handleWatch()` are what stop it exhausting the 1000 KV-writes/day the board
-  also depends on. CORS is not the boundary.
+  also depends on. CORS is not the boundary. The caps bound how many keys
+  exist, not how many writes happen, so `handleWatch()` also skips any `put`
+  that changes nothing: re-arming an armed watch costs zero writes and keeps
+  its original expiry, and an unchanged `sub:` is rewritten only once its
+  `metadata.at` is a week old (to keep pushing out its 90-day TTL).
 - **`public/sw.js` must never grow a `fetch` handler or precaching.** It exists
   only to receive pushes; a caching SW on GitHub Pages ships a stale bundle
   forever.
