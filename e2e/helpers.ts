@@ -1,24 +1,38 @@
 import type { Page } from '@playwright/test'
 import { WORKER } from '../playwright.config'
-import type { AllStationsResponse, StationApiResponse, StationRef } from '../src/types'
+import type { AllStationsResponse, PowerHistory, StationApiResponse, StationRef } from '../src/types'
+import { apiStation, BUSY, FREE, ref, uuid } from '../src/test/fixtures'
 
-export const FREE = 1
-export const BUSY = 2
+// The unit tests' builders, so both suites describe a station the same way
+export { BUSY, FREE, uuid }
 
-export const uuid = (n: number) => `${String(n).padStart(8, '0')}-1111-2222-3333-444444444444`
+export const station = (n: number, group: string | undefined, State: number, name = `Charger ${n}`) => {
+  const r = ref(n, group, `Fallback ${n}`)
+  return {
+    ref: r,
+    data: apiStation(r, State, {
+      Name: name,
+      Description: group ? `${group} level` : 'Ungrouped',
+      Connectors: [],
+    }),
+  }
+}
 
-export const station = (n: number, group: string | undefined, State: number, name = `Charger ${n}`) => ({
-  ref: { id: uuid(n), name: `Fallback ${n}`, ...(group ? { group } : {}) } as StationRef,
-  data: {
-    ID: uuid(n),
-    Name: name,
-    Description: group ? `${group} level` : 'Ungrouped',
-    State,
-    ActivePower: 0,
-    IsDisabled: false,
-    Connectors: [],
-  } as StationApiResponse,
-})
+type Board = { ref: StationRef; data: StationApiResponse | null }[]
+
+const MIN = 60_000
+export const CHARGING_KW = 7.4
+
+/**
+ * Two hours of 10-minute samples ending now: occupied stations have been
+ * plugged in and drawing CHARGING_KW throughout, the rest sat idle.
+ */
+export function historyFor(board: Board, now = Date.now()): PowerHistory {
+  const t = Array.from({ length: 13 }, (_, i) => now - (12 - i) * 10 * MIN)
+  const series = (value: (busy: boolean) => number) =>
+    Object.fromEntries(board.map((s) => [s.ref.id, t.map(() => value(s.data?.State === BUSY))]))
+  return { t, p: series((busy) => (busy ? CHARGING_KW : 0)), s: series(Number) }
+}
 
 /**
  * The real stations.json groups. Besucherplatz and Parkhaus EG are hidden by
@@ -39,10 +53,16 @@ type Recorded = { method: string; path: string; body: unknown }
  * Answers the fake worker origin the e2e build talks to. The board can be
  * swapped (or the worker "taken down") mid-test; every request is recorded.
  */
-export async function fakeWorker(page: Page, initial = BOARD, opts: { updatedAt?: number } = {}) {
+export async function fakeWorker(
+  page: Page,
+  initial: Board = BOARD,
+  // history: omitted = one matching the board; null = /history fails
+  opts: { updatedAt?: number; history?: PowerHistory | null } = {},
+) {
   const state = {
-    board: initial as { ref: StationRef; data: StationApiResponse | null }[] | null,
+    board: initial as Board | null,
     updatedAt: opts.updatedAt ?? Date.now(),
+    history: opts.history === undefined ? historyFor(initial) : opts.history,
     watches: new Set<string>(),
     requests: [] as Recorded[],
   }
@@ -69,6 +89,9 @@ export async function fakeWorker(page: Page, initial = BOARD, opts: { updatedAt?
       if (!state.board) return json(502, { error: 'stations.json HTTP 500' })
       const payload: AllStationsResponse = { updatedAt: state.updatedAt, stations: state.board }
       return json(200, payload)
+    }
+    if (url.pathname === '/history') {
+      return state.history ? json(200, state.history) : json(500, { error: 'history unavailable' })
     }
     if (url.pathname === '/watch' && req.method() === 'POST') {
       state.watches.add(body.stationId)
