@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { API_URL, armWatch, disarmWatch, fetchWatches, subIdFor } from '../api'
 import type { PushSubscriptionPayload } from '../types'
 
 const VAPID_PUBLIC_KEY: string = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? ''
 const WATCHES_KEY = 'parking-app:watches'
+
+// Watches only vanish server-side when the cron delivers them (every 10 min)
+// or they expire, so re-syncing more often than this rarely finds a change —
+// and every GET /watches spends a KV list from the worker's public daily
+// budget, the same one arming needs.
+export const FOCUS_SYNC_MS = 10 * 60 * 1000
 
 export type PushState =
   | 'ready' // usable; permission may still need asking
@@ -66,19 +72,26 @@ export function usePushWatch() {
   const [watches, setWatches] = useState<string[]>(() => readStoredWatches())
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Read by the focus listener without re-subscribing it on every change
+  const watchesRef = useRef(watches)
 
   useEffect(() => {
+    watchesRef.current = watches
     localStorage.setItem(WATCHES_KEY, JSON.stringify(watches))
   }, [watches])
 
   // The server is the source of truth: watches are one-shot and expire after
-  // 8h, so localStorage goes stale on its own. Re-sync on load and whenever
-  // the app comes back into view (same trigger the board refresh uses).
+  // 8h, so localStorage goes stale on its own. Re-sync on load (which also
+  // recovers watches after a reinstall), and on coming back into view — but
+  // only when a bell is lit (with none armed, nothing server-side can change)
+  // and at most once per FOCUS_SYNC_MS.
   useEffect(() => {
     if (state !== 'ready') return
     let cancelled = false
+    let lastSync = 0 // effect-local, like useStations' guard: a remount syncs afresh
 
     const sync = async () => {
+      lastSync = Date.now()
       const sub = await currentSubscription()
       if (!sub) return
       try {
@@ -90,7 +103,10 @@ export function usePushWatch() {
     }
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') sync()
+      if (document.visibilityState !== 'visible') return
+      if (watchesRef.current.length === 0) return
+      if (Date.now() - lastSync < FOCUS_SYNC_MS) return
+      sync()
     }
 
     sync()
