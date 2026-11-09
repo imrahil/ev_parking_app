@@ -6,7 +6,7 @@ import { useTheme, type Theme } from './hooks/useTheme'
 import { StationCard } from './components/StationCard'
 import { SettingsDialog } from './components/SettingsDialog'
 import { stateToStatus } from './api'
-import { STATUS } from './consts/consts'
+import { OUTLINE_PILL, STATUS } from './consts/consts'
 
 const FILTER_KEY = 'parking-app:groupFilter'
 const HIDDEN_KEY = 'parking-app:hiddenGroups'
@@ -135,14 +135,14 @@ export function App() {
             <div className="ml-auto flex shrink-0 items-center gap-2 text-xs">
               <div className="hidden sm:flex items-center gap-3 font-semibold">
                 <span className="text-mint">{counts.a} Free</span>
-                <span style={{ color: '#db0237' }}>{counts.o} Busy</span>
+                <span className="text-busy">{counts.o} Busy</span>
               </div>
               <ThemeToggle theme={theme} onCycle={cycleTheme} />
               <button
                 onClick={() => setSettingsOpen(true)}
                 title="Settings"
                 aria-label="Settings"
-                className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 transition bg-transparent text-navy/70 ring-navy/25 hover:ring-navy/60 hover:text-navy dark:text-white/70 dark:ring-white/25 dark:hover:ring-white/60 dark:hover:text-white"
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold transition ${OUTLINE_PILL}`}
               >
                 <span aria-hidden>⚙</span>
               </button>
@@ -238,7 +238,7 @@ function ThemeToggle({ theme, onCycle }: { theme: Theme; onCycle: () => void }) 
     <button
       onClick={onCycle}
       title={`Theme: ${label} — click to change`}
-      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 transition bg-transparent text-navy/70 ring-navy/25 hover:ring-navy/60 hover:text-navy dark:text-white/70 dark:ring-white/25 dark:hover:ring-white/60 dark:hover:text-white"
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${OUTLINE_PILL}`}
     >
       <span aria-hidden>{icon}</span>
       <span className="hidden sm:inline">{label}</span>
@@ -269,7 +269,7 @@ function FilterChip({
       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
         active
           ? 'bg-selected text-white shadow dark:bg-white dark:text-navy'
-          : 'bg-transparent text-navy/70 ring-1 ring-navy/25 hover:ring-navy/60 hover:text-navy dark:text-white/70 dark:ring-white/25 dark:hover:ring-white/60 dark:hover:text-white'
+          : OUTLINE_PILL
       }`}
     >
       <span>{label}</span>

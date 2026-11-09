@@ -58,6 +58,23 @@ const BUDGET_EXHAUSTED = {
   list: 'Too many notification lookups today — try again tomorrow',
 }
 
+// Watch key names carry both ids (watch:<stationId>:<subId>), so finding who
+// watches what costs one list() and no reads. Neither id can contain a colon:
+// station ids are UUIDs, sub ids are base64url.
+const WATCH_PREFIX = 'watch:'
+const watchKey = (stationId, sub) => `${WATCH_PREFIX}${stationId}:${sub}`
+
+/** Every armed watch, parsed from the key names: [{ key, stationId, sub, expiration }] */
+async function listWatches(env) {
+  const { keys } = await env.CACHE.list({ prefix: WATCH_PREFIX })
+  return keys.flatMap((k) => {
+    const parts = k.name.split(':')
+    return parts.length === 3
+      ? [{ key: k.name, stationId: parts[1], sub: parts[2], expiration: k.expiration }]
+      : []
+  })
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
@@ -180,13 +197,8 @@ async function notifyWatchers(env, payload, silent) {
 }
 
 async function deliver(env, payload, freed, hadPending) {
-  // Key names alone (watch:<stationId>:<subId>) tell us who wants what, so
-  // matching costs no reads — we only read the subscriptions we'll notify.
-  const { keys } = await env.CACHE.list({ prefix: 'watch:' })
-  const targets = keys
-    .map((k) => k.name.split(':'))
-    .filter((parts) => parts.length === 3 && freed.has(parts[1]))
-    .map(([, stationId, sub]) => ({ key: `watch:${stationId}:${sub}`, stationId, sub }))
+  // Matching costs no reads — we only read the subscriptions we'll notify
+  const targets = (await listWatches(env)).filter((w) => freed.has(w.stationId))
 
   if (targets.length === 0) {
     if (hadPending) await env.CACHE.delete(PENDING_KEY)
@@ -343,7 +355,7 @@ async function handleWatch(request, env, cors) {
   if (request.method === 'DELETE') {
     if (!isPushEndpoint(body?.endpoint)) return json({ error: 'Invalid endpoint' }, 400, cors)
     const id = await subId(body.endpoint)
-    const key = `watch:${stationId}:${id}`
+    const key = watchKey(stationId, id)
     // A read first (100k/day): disarming what isn't armed costs no delete, so
     // every real delete pairs with a watch put that was already budgeted.
     if ((await env.CACHE.get(key)) === null) return json({ ok: true }, 200, cors)
@@ -373,10 +385,9 @@ async function handleWatch(request, env, cors) {
     const { keys } = await env.CACHE.list({ prefix: 'sub:', limit: MAX_SUBS + 1 })
     if (keys.length >= MAX_SUBS) return json({ error: 'Too many subscriptions' }, 429, cors)
   }
-  const { keys: watches } = await env.CACHE.list({ prefix: 'watch:' })
-  const mine = watches.filter((k) => k.name.endsWith(`:${id}`))
-  const watchKey = `watch:${stationId}:${id}`
-  const armed = mine.find((k) => k.name === watchKey)
+  const mine = (await listWatches(env)).filter((w) => w.sub === id)
+  const key = watchKey(stationId, id)
+  const armed = mine.find((w) => w.key === key)
   if (mine.length >= MAX_WATCHES_PER_SUB && !armed) {
     return json({ error: 'Too many watches' }, 429, cors)
   }
@@ -403,7 +414,7 @@ async function handleWatch(request, env, cors) {
     const expiresIn = armed.expiration ? Math.max(0, armed.expiration - Math.floor(now / 1000)) : WATCH_TTL_S
     return json({ ok: true, sub: id, expiresIn }, 200, cors)
   }
-  await env.CACHE.put(watchKey, '', { expirationTtl: WATCH_TTL_S })
+  await env.CACHE.put(key, '', { expirationTtl: WATCH_TTL_S })
   return json({ ok: true, sub: id, expiresIn: WATCH_TTL_S }, 200, cors)
 }
 
@@ -413,11 +424,7 @@ async function handleWatches(url, env, cors) {
   if (!sub) return json({ error: 'Missing sub' }, 400, cors)
   const refused = await spendBudget(env, 'list', 1, cors)
   if (refused) return refused
-  const { keys } = await env.CACHE.list({ prefix: 'watch:' })
-  const stations = keys
-    .map((k) => k.name.split(':'))
-    .filter((parts) => parts.length === 3 && parts[2] === sub)
-    .map((parts) => parts[1])
+  const stations = (await listWatches(env)).filter((w) => w.sub === sub).map((w) => w.stationId)
   return json({ stations }, 200, cors)
 }
 

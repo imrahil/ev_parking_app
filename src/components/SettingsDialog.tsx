@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { PushState } from '../hooks/usePushWatch'
+import { CARD_SURFACE } from '../consts/consts'
 
 type Props = {
   open: boolean
@@ -52,7 +53,7 @@ export function SettingsDialog({
       aria-label="Settings"
     >
       <div
-        className="w-full max-w-sm rounded-xl p-5 bg-white text-navy shadow-[0_8px_20px_-6px_rgba(8,24,35,0.4)] dark:bg-navy dark:text-white dark:shadow-[0_0_4px_1px_rgba(255,255,255,0.22),0_0_10px_2px_rgba(255,255,255,0.12),8px_10px_20px_rgba(0,0,0,0.85)]"
+        className={`w-full max-w-sm ${CARD_SURFACE} shadow-[0_8px_20px_-6px_rgba(8,24,35,0.4)]`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-navy/80 dark:border-white/80 pb-3">
@@ -100,7 +101,7 @@ export function SettingsDialog({
               </p>
             )}
             {pushError && (
-              <p className="mt-1.5 text-xs text-busy dark:text-[#f08a92]">⚠ {pushError}</p>
+              <p className="mt-1.5 text-xs text-busy dark:text-busy-soft">⚠ {pushError}</p>
             )}
           </>
         )}

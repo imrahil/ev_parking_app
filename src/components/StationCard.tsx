@@ -7,6 +7,8 @@ import {
   STATUS_LABEL,
   CONNECTOR_STYLES,
   CONNECTOR_DOT,
+  CARD_SURFACE,
+  OUTLINE_RING,
   type Status,
 } from '../consts/consts'
 
@@ -53,8 +55,6 @@ function timeAgo(ts: number | null): string {
   return `${h}h ago`
 }
 
-export { formatPower }
-
 export function StationCard({
   view,
   watch,
@@ -73,7 +73,7 @@ export function StationCard({
   const connectors = data?.Connectors ?? []
 
   return (
-    <div className="rounded-xl p-5 bg-white text-navy shadow-[0_8px_20px_-6px_rgba(8,24,35,0.25)] dark:bg-navy dark:text-white dark:shadow-[0_0_4px_1px_rgba(255,255,255,0.22),0_0_10px_2px_rgba(255,255,255,0.12),8px_10px_20px_rgba(0,0,0,0.85)]">
+    <div className={`${CARD_SURFACE} shadow-[0_8px_20px_-6px_rgba(8,24,35,0.25)]`}>
       <div className="flex items-start justify-between gap-3 border-b border-navy/80 dark:border-white/80 pb-3">
         <div className="min-w-0">
           <h3 className="text-base tracking-tight truncate">{name}</h3>
@@ -124,7 +124,7 @@ export function StationCard({
         <span className="min-w-0 truncate">
           {loading && !data ? 'Loading…' : `Updated ${timeAgo(fetchedAt)}`}
           {error && (
-            <span className="text-busy dark:text-[#f08a92] ml-2" title={error}>
+            <span className="text-busy dark:text-busy-soft ml-2" title={error}>
               ⚠ {error}
             </span>
           )}
@@ -143,7 +143,7 @@ export function StationCard({
             className={`ml-auto shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold transition disabled:opacity-50 ${
               watch.armed
                 ? CONNECTOR_STYLES[STATUS.AVAILABLE]
-                : 'bg-transparent ring-1 text-navy/60 ring-navy/25 hover:ring-navy/60 hover:text-navy dark:text-white/60 dark:ring-white/25 dark:hover:ring-white/60 dark:hover:text-white'
+                : `${OUTLINE_RING} text-navy/60 dark:text-white/60`
             }`}
           >
             <span aria-hidden>🔔</span>
