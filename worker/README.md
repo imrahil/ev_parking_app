@@ -116,5 +116,6 @@ useful for local dev and as an escape hatch if the worker is down.
   `stations.json` + one fetch per station leaves the rest as the push budget,
   and the station list is capped near 49; KV 1k writes/day (cron uses ~94, and
   `state` is only written when something changed); 10ms CPU per invocation —
-  if `wrangler tail` ever reports "Exceeded CPU limit", move `notifyWatchers`
-  into its own invocation.
+  each push costs ~2 ms of encryption, so `MAX_PUSHES_PER_RUN` (3) caps a run
+  and the rest go out via `pending` 10 min later. If `wrangler tail` reports
+  "Exceeded CPU limit", lower it.
