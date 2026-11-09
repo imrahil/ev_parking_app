@@ -39,7 +39,10 @@ function makeKV(initial = {}) {
   const kv = {
     store,
     meta,
-    writes: 0, // puts + deletes: what the free plan's daily write budget counts
+    // The free plan's separate daily budgets: 1,000 each of puts, deletes, lists
+    writes: 0,
+    deletes: 0,
+    lists: 0,
     async get(key, type) {
       const v = store.get(key)
       if (v === undefined) return null
@@ -58,11 +61,12 @@ function makeKV(initial = {}) {
       })
     },
     async delete(key) {
-      kv.writes++
+      kv.deletes++
       store.delete(key)
       meta.delete(key)
     },
     async list({ prefix = '', limit = 1000 } = {}) {
+      kv.lists++
       const keys = [...store.keys()]
         .filter((k) => k.startsWith(prefix))
         .slice(0, limit)
@@ -537,6 +541,106 @@ test('DELETE /watch disarms, GET /watches lists what is armed', async () => {
   assert.equal(del.status, 200)
   assert.equal(kv.store.has(`watch:${uuid(1)}:${armed.sub}`), false)
   assert.ok(kv.store.has(`watch:${uuid(2)}:${armed.sub}`), 'other watch untouched')
+})
+
+const del = (endpoint, stationId) =>
+  new Request('https://w.test/watch', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Origin: 'https://imrahil.github.io' },
+    body: JSON.stringify({ endpoint, stationId }),
+  })
+const today = () => new Date().toISOString().slice(0, 10)
+
+test('disarming what is not armed costs no delete and no budget', async () => {
+  const kv = makeKV()
+  const budget = makeBudget()
+  installFetch({})
+  const sub = await makeSubscription()
+  const env = await envWith(kv, vapid, budget)
+
+  for (let i = 0; i < 20; i++) {
+    const r = await worker.fetch(del(sub.endpoint, uuid(1)), env)
+    assert.equal(r.status, 200)
+  }
+  assert.equal(kv.deletes, 0)
+  assert.equal(budget.storage.has('used:delete'), false)
+})
+
+test('DELETE /watch spends the delete budget and stops once it is gone', async () => {
+  const kv = makeKV()
+  const budget = makeBudget()
+  installFetch({})
+  const sub = await makeSubscription()
+  const env = await envWith(kv, vapid, budget)
+  const { sub: id } = await (await worker.fetch(post({ subscription: sub, stationId: uuid(1) }), env)).json()
+  await worker.fetch(post({ subscription: sub, stationId: uuid(2) }), env)
+
+  assert.equal((await worker.fetch(del(sub.endpoint, uuid(1)), env)).status, 200)
+  assert.equal(kv.deletes, 1)
+  assert.deepEqual(budget.storage.get('used:delete'), { day: today(), n: 1 })
+
+  budget.storage.set('used:delete', { day: today(), n: 300 })
+  const refused = await worker.fetch(del(sub.endpoint, uuid(2)), env)
+  assert.equal(refused.status, 429)
+  assert.match((await refused.json()).error, /expire on its own/)
+  assert.equal(kv.deletes, 1, 'nothing deleted when refused')
+  assert.ok(kv.store.has(`watch:${uuid(2)}:${id}`), 'still armed')
+})
+
+test('GET /watches spends the list budget and stops once it is gone', async () => {
+  const kv = makeKV()
+  const budget = makeBudget()
+  installFetch({})
+  const env = await envWith(kv, vapid, budget)
+  const watches = () => worker.fetch(new Request('https://w.test/watches?sub=abc'), env)
+
+  assert.equal((await watches()).status, 200)
+  assert.deepEqual(budget.storage.get('used:list'), { day: today(), n: 1 })
+
+  budget.storage.set('used:list', { day: today(), n: 500 })
+  const lists = kv.lists
+  const refused = await watches()
+  assert.equal(refused.status, 429)
+  assert.equal(kv.lists, lists, 'nothing listed when refused')
+})
+
+test('POST /watch takes its lists before listing (2 for a new subscription)', async () => {
+  const kv = makeKV()
+  const budget = makeBudget()
+  installFetch({})
+  const sub = await makeSubscription()
+  const env = await envWith(kv, vapid, budget)
+
+  await worker.fetch(post({ subscription: sub, stationId: uuid(1) }), env)
+  assert.equal(kv.lists, 2)
+  assert.equal(budget.storage.get('used:list').n, 2)
+  await worker.fetch(post({ subscription: sub, stationId: uuid(2) }), env)
+  assert.equal(kv.lists, 3, 'known subscription skips the sub: cap list')
+  assert.equal(budget.storage.get('used:list').n, 3)
+
+  budget.storage.set('used:list', { day: today(), n: 500 })
+  const refused = await worker.fetch(post({ subscription: sub, stationId: uuid(3) }), env)
+  assert.equal(refused.status, 429)
+  assert.equal(kv.lists, 3)
+  assert.equal(kv.writes, 3, 'nor written')
+})
+
+test('the cron delivers even when every public budget is spent', async () => {
+  const sub = await makeSubscription()
+  const kv = makeKV({
+    state: JSON.stringify({ [uuid(1)]: 2 }),
+    'sub:S': JSON.stringify(sub),
+    [`watch:${uuid(1)}:S`]: '',
+  })
+  const budget = makeBudget()
+  for (const [op, key] of [['put', 'used'], ['delete', 'used:delete'], ['list', 'used:list']]) {
+    budget.storage.set(key, { day: today(), n: { put: 400, delete: 300, list: 500 }[op] })
+  }
+  const pushes = installFetch({ [uuid(1)]: 1 })
+  await worker.scheduled({ scheduledTime: DAY }, await envWith(kv, vapid, budget))
+
+  assert.equal(pushes.length, 1)
+  assert.equal(kv.store.has(`watch:${uuid(1)}:S`), false, 'delivered and disarmed')
 })
 
 test('with no VAPID keys the board still refreshes and nothing is pushed', async () => {
