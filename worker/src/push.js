@@ -28,6 +28,15 @@ const PUSH_SERVICES = [
   { host: '.notify.windows.com' }, // Edge (legacy WNS)
 ]
 
+/**
+ * Notifications need the VAPID pair. Without it the worker still refreshes the
+ * board and serves /stations exactly as before — so it is safe to deploy this
+ * worker before `wrangler secret put VAPID_PRIVATE_KEY` has ever been run.
+ */
+export function pushConfigured(env) {
+  return Boolean(env.VAPID_SUBJECT && env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY)
+}
+
 /** True if `endpoint` is an https URL on a known push service. */
 export function isPushEndpoint(endpoint) {
   if (typeof endpoint !== 'string') return false
