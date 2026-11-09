@@ -35,7 +35,8 @@ worker tests, on every pull request and before every deploy.
   run in API mode against the committed `.env`.
 - **Contract (`src/worker.test.ts`)**: the frontend client talks to the real
   `worker/src/worker.js` in-process over a mock KV; only stations.json and
-  ecarup.com are faked. This is what keeps the `/stations` payload and
+  ecarup.com are faked. The mock KV and budget come from
+  `worker/test/helpers.mjs`, the same ones the worker tests use. This is what keeps the `/stations` payload and
   `subIdFor()`/`subId()` in step.
 - **E2E (`e2e/*.spec.ts`)**: `playwright.config.ts` builds the app into
   `dist-e2e/` against a fake worker origin (`https://worker.e2e`) and serves it
@@ -53,6 +54,11 @@ npx wrangler dev     # run the worker locally
 npx wrangler deploy  # deploy (also needed after any worker/ change)
 npx wrangler tail    # live logs
 ```
+
+Worker tests are one `test/<module>.test.mjs` per `src/<module>.js`
+(`worker.test.mjs` covers only the entry point's own routes), sharing the
+mocks in `test/helpers.mjs`. `npm test` runs `test/*.test.mjs`, so a helper
+file there is not picked up as a test.
 
 ## Architecture
 
