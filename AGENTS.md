@@ -177,6 +177,16 @@ matters. See `worker/README.md` for the operational side.
   that changes nothing: re-arming an armed watch costs zero writes and keeps
   its original expiry, and an unchanged `sub:` is rewritten only once its
   `metadata.at` is a week old (to keep pushing out its 90-day TTL).
+- **`/watch` has a strict daily write budget**: `WATCH_WRITES_PER_DAY` (400)
+  KV puts per UTC day, counted in the `WriteBudget` Durable Object (binding
+  `WATCH_BUDGET`, SQLite-backed — the free plan's kind). Every put
+  `handleWatch()` makes must be taken from it first; over budget → 429, and if
+  the DO is unreachable → 503 (fail closed). That keeps abuse from freezing
+  the board, at the cost of disabling arming until midnight UTC. Don't swap it
+  for the `[[ratelimits]]` binding: that is per-location and at most
+  per-minute, so it cannot hold a daily total. `WriteBudget` is a plain
+  `fetch()` class, not a `cloudflare:workers` `DurableObject` subclass, so
+  `worker.js` still imports under `node:test`.
 - **`public/sw.js` must never grow a `fetch` handler or precaching.** It exists
   only to receive pushes; a caching SW on GitHub Pages ships a stale bundle
   forever.

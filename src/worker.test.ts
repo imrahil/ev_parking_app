@@ -5,7 +5,7 @@
  * subscription id ever drift between the two sides, these fail.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import worker from '../worker/src/worker.js'
+import worker, { WriteBudget } from '../worker/src/worker.js'
 import { subId } from '../worker/src/push.js'
 import { API_URL, armWatch, disarmWatch, fetchAllStations, fetchHistory, fetchWatches, subIdFor } from './api'
 import { apiStation, BUSY, FREE, jsonResponse, ref, requestUrl } from './test/fixtures'
@@ -38,12 +38,28 @@ function makeKV() {
   }
 }
 
+// The real WriteBudget Durable Object over in-memory storage
+function makeBudget() {
+  const storage = new Map<string, unknown>()
+  const budget = new WriteBudget({
+    storage: {
+      get: async (key: string) => storage.get(key),
+      put: async (key: string, value: unknown) => void storage.set(key, value),
+    },
+  })
+  return {
+    idFromName: (name: string) => name,
+    get: () => ({ fetch: (url: string) => budget.fetch(new Request(url)) }),
+  }
+}
+
 let kv: ReturnType<typeof makeKV>
 let board: { refs: StationRef[]; states: Record<string, number | 'down'> }
 let upstreamCalls: string[]
 
 const env = () => ({
   CACHE: kv,
+  WATCH_BUDGET: makeBudget(),
   STATIONS_JSON_URL,
   ALLOWED_ORIGINS: ORIGIN,
   // Any non-empty strings: arming only checks that push is configured

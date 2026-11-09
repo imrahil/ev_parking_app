@@ -4,7 +4,7 @@
 //   cd worker && npm test
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import worker, { appendHistory } from '../src/worker.js'
+import worker, { appendHistory, WriteBudget } from '../src/worker.js'
 
 const b64url = (buf) =>
   Buffer.from(buf).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
@@ -76,6 +76,27 @@ function makeKV(initial = {}) {
   return kv
 }
 
+// The real WriteBudget class over an in-memory storage, behind a stub
+// namespace shaped like a Durable Object binding.
+function makeBudget() {
+  const storage = new Map()
+  const budget = new WriteBudget({
+    storage: {
+      async get(key) {
+        return storage.get(key)
+      },
+      async put(key, value) {
+        storage.set(key, value)
+      },
+    },
+  })
+  return {
+    storage,
+    idFromName: (name) => name,
+    get: () => ({ fetch: (url) => budget.fetch(new Request(url)) }),
+  }
+}
+
 const STATIONS_JSON_URL = 'https://example.test/stations.json'
 
 function installFetch(states, pushStatus = 201) {
@@ -107,9 +128,10 @@ function installFetch(states, pushStatus = 201) {
 
 const uuid = (n) => `${String(n).padStart(8, '0')}-1111-2222-3333-444444444444`
 
-async function envWith(kv, vapid) {
+async function envWith(kv, vapid, budget = makeBudget()) {
   return {
     CACHE: kv,
+    WATCH_BUDGET: budget,
     STATIONS_JSON_URL,
     ALLOWED_ORIGINS: 'https://imrahil.github.io,http://localhost:5173',
     VAPID_SUBJECT: 'mailto:test@example.test',
@@ -424,6 +446,66 @@ test('a changed or week-old subscription is rewritten', async () => {
   await worker.fetch(post({ subscription: rotated, stationId: uuid(1) }), env)
   await worker.fetch(post({ subscription: rotated, stationId: uuid(1) }), env)
   assert.equal(kv.writes, 5)
+})
+
+test('/watch stops writing once the daily budget is spent; the board is untouched', async () => {
+  const kv = makeKV()
+  const budget = makeBudget()
+  const today = new Date().toISOString().slice(0, 10)
+  budget.storage.set('used', { day: today, n: 399 })
+  installFetch({})
+  const env = await envWith(kv, vapid, budget)
+
+  // A new subscription needs 2 puts (sub + watch); only 1 is left
+  const sub = await makeSubscription('fcm.googleapis.com', 'late')
+  const refused = await worker.fetch(post({ subscription: sub, stationId: uuid(1) }), env)
+  assert.equal(refused.status, 429)
+  assert.match((await refused.json()).error, /tomorrow/)
+  assert.equal(kv.writes, 0, 'nothing written when refused')
+  assert.equal(budget.storage.get('used').n, 399, 'a refusal spends nothing')
+
+  // The cron still refreshes: the budget only gates /watch
+  installFetch({ [uuid(1)]: 1 })
+  await worker.scheduled({ scheduledTime: DAY }, env)
+  assert.ok(kv.store.has('all'))
+})
+
+test('the budget counts puts, resets daily, and re-arming spends none', async () => {
+  const kv = makeKV()
+  const budget = makeBudget()
+  installFetch({})
+  const env = await envWith(kv, vapid, budget)
+  const sub = await makeSubscription()
+
+  await worker.fetch(post({ subscription: sub, stationId: uuid(1) }), env)
+  assert.equal(budget.storage.get('used').n, 2, 'sub + watch')
+  await worker.fetch(post({ subscription: sub, stationId: uuid(1) }), env)
+  assert.equal(budget.storage.get('used').n, 2, 'no-op re-arm is free')
+  await worker.fetch(post({ subscription: sub, stationId: uuid(2) }), env)
+  assert.equal(budget.storage.get('used').n, 3, 'watch only')
+
+  // Yesterday's exhausted count does not carry over
+  budget.storage.set('used', { day: '2000-01-01', n: 400 })
+  const r = await worker.fetch(post({ subscription: sub, stationId: uuid(3) }), env)
+  assert.equal(r.status, 200)
+  assert.deepEqual(budget.storage.get('used'), { day: new Date().toISOString().slice(0, 10), n: 1 })
+})
+
+test('/watch fails closed when the budget is unreachable', async () => {
+  const kv = makeKV()
+  installFetch({})
+  const broken = {
+    idFromName: () => 'x',
+    get: () => ({
+      fetch: async () => {
+        throw new Error('DO down')
+      },
+    }),
+  }
+  const sub = await makeSubscription()
+  const res = await worker.fetch(post({ subscription: sub, stationId: uuid(1) }), await envWith(kv, vapid, broken))
+  assert.equal(res.status, 503)
+  assert.equal(kv.writes, 0)
 })
 
 test('DELETE /watch disarms, GET /watches lists what is armed', async () => {
