@@ -33,10 +33,13 @@ export type AllStationsResponse = {
 }
 
 // Shape served by the Cloudflare Worker's GET /history: charging power in kW,
-// one aligned series per station id; null = no reading (the fetch failed)
+// one aligned series per station id; null = no reading (the fetch failed).
+// `s` is "a car is plugged in" (1/0) and is absent in history written before
+// it existed.
 export type PowerHistory = {
   t: number[]
   p: Record<string, (number | null)[]>
+  s?: Record<string, (number | null)[]>
 }
 
 export type StationView = {

@@ -52,10 +52,10 @@ Put that (plus `/stations`) into `VITE_API_URL` — see "Frontend" below.
 - The first request after a fresh deploy triggers an on-demand refresh, so the
   endpoint works before the first cron run.
 
-`GET /history` → `{ "t": [ms…], "p": { "<stationId>": [kW | null, …] } }` — the
+`GET /history` → `{ "t": [ms…], "p": { "<stationId>": [kW | null, …] }, "s": { "<stationId>": [1 | 0 | null, …] } }` — the
 last 12 h of charging power, one sample per refresh (every 10 min by day,
 hourly at night), series aligned to `t`; `null` means that station's fetch
-failed. Empty (`{t:[],p:{}}`) until the first cron run after deploy. Stored as a
+failed; `s` is 1 while a car is plugged in. Empty (`{t:[],p:{},s:{}}`) until the first cron run after deploy. Stored as a
 single KV key, ~1 write per refresh.
 
 ## Notification endpoints

@@ -115,7 +115,7 @@ describe('GET /stations', () => {
 
 describe('GET /history', () => {
   it('is empty before the first cron run', async () => {
-    await expect(fetchHistory()).resolves.toEqual({ t: [], p: {} })
+    await expect(fetchHistory()).resolves.toEqual({ t: [], p: {}, s: {} })
   })
 
   it('accumulates one aligned sample per cron run, in kW', async () => {
@@ -127,6 +127,9 @@ describe('GET /history', () => {
     for (const r of board.refs) expect(h.p[r.id]).toHaveLength(2)
     expect(h.p[board.refs[2].id]).toEqual([null, null]) // down station = gaps, not zeros
     expect(h.p[board.refs[0].id]).toEqual([0, 0])
+    expect(h.s?.[board.refs[0].id]).toEqual([0, 0]) // free
+    expect(h.s?.[board.refs[1].id]).toEqual([1, 1]) // occupied
+    expect(h.s?.[board.refs[2].id]).toEqual([null, null])
   })
 })
 
