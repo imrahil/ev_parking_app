@@ -4,6 +4,8 @@ const ECARUP_BASE = 'https://www.ecarup.com/api/stations'
 const KV_KEY = 'all'
 const STATE_KEY = 'state' // last seen State per station, for transition detection
 const PENDING_KEY = 'pending' // stations freed but not fully notified yet
+const HISTORY_KEY = 'history' // charging power over the last HISTORY_MS, all stations in one blob
+const HISTORY_MS = 12 * 60 * 60 * 1000
 
 const STATE_AVAILABLE = 1
 
@@ -63,6 +65,40 @@ async function refreshAll(env) {
   const payload = { updatedAt: Date.now(), stations }
   await env.CACHE.put(KV_KEY, JSON.stringify(payload))
   return payload
+}
+
+/**
+ * Appends this refresh's ActivePower (kW) to the rolling history and drops
+ * samples older than HISTORY_MS. Shape: { t: [ms…], p: { [stationId]: [kW|null…] } }
+ * with every p array aligned to t; null = the station's fetch failed (a gap,
+ * not a zero).
+ *
+ * One blob, one write per refresh (~94/day) — per-sample keys would blow the
+ * free plan's 1000 KV writes/day. Only the cron calls this, so the
+ * read-modify-write has no concurrent writer.
+ */
+export function appendHistory(prev, payload) {
+  const old = prev && Array.isArray(prev.t) && prev.p ? prev : { t: [], p: {} }
+  const cutoff = payload.updatedAt - HISTORY_MS
+  const first = old.t.findIndex((t) => t >= cutoff)
+  const start = first === -1 ? old.t.length : first
+
+  const kept = old.t.length - start
+  const p = {}
+  for (const s of payload.stations) {
+    const power = s.data?.ActivePower
+    const sample = Number.isFinite(power) ? Math.round(power * 10) / 10 : null
+    const column = old.p[s.ref.id]
+    // A station new to the list (or missing from older history) is padded with gaps
+    const series = column ? column.slice(start) : new Array(kept).fill(null)
+    p[s.ref.id] = [...series, sample]
+  }
+  return { t: [...old.t.slice(start), payload.updatedAt], p }
+}
+
+async function recordHistory(env, payload) {
+  const prev = await env.CACHE.get(HISTORY_KEY, 'json')
+  await env.CACHE.put(HISTORY_KEY, JSON.stringify(appendHistory(prev, payload)))
 }
 
 /**
@@ -274,6 +310,12 @@ export default {
     if (night && when.getUTCMinutes() !== 0) return
 
     const payload = await refreshAll(env)
+    // Best effort: a history failure must not cost anyone their notification
+    try {
+      await recordHistory(env, payload)
+    } catch (e) {
+      console.error('history', e)
+    }
     await notifyWatchers(env, payload, night)
   },
 
@@ -291,6 +333,13 @@ export default {
 
     if (url.pathname === '/watches' && request.method === 'GET') {
       return handleWatches(url, env, cors)
+    }
+
+    if (url.pathname === '/history' && ['GET', 'HEAD'].includes(request.method)) {
+      const body = (await env.CACHE.get(HISTORY_KEY)) ?? JSON.stringify({ t: [], p: {} })
+      return new Response(body, {
+        headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' },
+      })
     }
 
     if (!['GET', 'HEAD'].includes(request.method) || !['/', '/stations'].includes(url.pathname)) {

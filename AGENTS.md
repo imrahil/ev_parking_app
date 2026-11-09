@@ -123,6 +123,17 @@ The pieces that need reading together:
   a StrictMode remount can't block the next mount's first refresh. Keep it
   effect-local if you touch that effect.
 
+## Power history
+
+Each card shows a 12 h sparkline of `ActivePower`. The cron appends one sample
+per refresh to the single KV key `history` (`appendHistory()` in `worker.js`:
+`{ t: [ms…], p: { [stationId]: [kW|null…] } }`, series aligned to `t`, `null` =
+failed fetch) and trims to 12 h. **Keep it one blob**: per-sample or
+per-station keys would burn the free plan's 1000 KV writes/day. It is served by
+`GET /history` (separate from `/stations` so the 60 s board poll stays small),
+fetched by `src/hooks/useHistory.ts`. Direct mode has no history and renders no
+chart. The write is best-effort (try/catch) so it can never block notifications.
+
 ## Notifications
 
 Tap the bell on a busy card, get one push when it frees up. This is
@@ -151,7 +162,7 @@ matters. See `worker/README.md` for the operational side.
 - **The push budget is `50 - 1 - stations.length`** external subrequests.
   Overflow goes to the `pending` key and retries next refresh — the state diff
   can't find it again, because by then it is no longer a transition.
-- KV layout: `all` (board), `state` (last State per station, written only on
+- KV layout: `all` (board), `history`, `state` (last State per station, written only on
   change), `sub:<subId>`, `watch:<stationId>:<subId>`, `pending`. Watch key
   *names* carry both ids, so matching watchers costs a `list()` and no reads.
 - `/watch` is public and writable, unlike everything else here. The endpoint

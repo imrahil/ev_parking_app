@@ -1,4 +1,6 @@
 import type { StationView } from '../types'
+import { formatPower } from '../format'
+import { PowerSparkline } from './PowerSparkline'
 import { stateToStatus } from '../api'
 import {
   STATUS,
@@ -7,6 +9,11 @@ import {
   CONNECTOR_DOT,
   type Status,
 } from '../consts/consts'
+
+export type PowerSeries = {
+  times: number[]
+  values: (number | null)[]
+}
 
 export type WatchControl = {
   armed: boolean
@@ -44,12 +51,17 @@ function timeAgo(ts: number | null): string {
   return `${h}h ago`
 }
 
-// ActivePower from ecarup is already in kW
-export function formatPower(kw: number): string {
-  return `${kw.toLocaleString('en', { maximumFractionDigits: 1 })} kW`
-}
+export { formatPower }
 
-export function StationCard({ view, watch }: { view: StationView; watch?: WatchControl }) {
+export function StationCard({
+  view,
+  watch,
+  history,
+}: {
+  view: StationView
+  watch?: WatchControl
+  history?: PowerSeries
+}) {
   const { ref, data, error, loading, fetchedAt } = view
   const overall = stateToStatus(data?.State)
   const name = data?.Name ?? ref.name
@@ -103,6 +115,8 @@ export function StationCard({ view, watch }: { view: StationView; watch?: WatchC
           })}
         </div>
       )}
+
+      {history && <PowerSparkline times={history.times} values={history.values} />}
 
       <div className="mt-4 flex items-center gap-2 text-xs text-navy/50 dark:text-white/50">
         <span className="min-w-0 truncate">

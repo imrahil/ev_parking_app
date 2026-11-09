@@ -1,5 +1,6 @@
 import type {
   AllStationsResponse,
+  PowerHistory,
   PushSubscriptionPayload,
   StationApiResponse,
   StationRef,
@@ -16,6 +17,20 @@ export async function fetchAllStations(signal?: AbortSignal): Promise<AllStation
   const res = await fetch(API_URL, { signal })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
+}
+
+export async function fetchHistory(signal?: AbortSignal): Promise<PowerHistory> {
+  const res = await fetch(apiUrl('history'), { signal })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const body: unknown = await res.json()
+  if (!isPowerHistory(body)) throw new Error('Malformed history')
+  return body
+}
+
+function isPowerHistory(v: unknown): v is PowerHistory {
+  if (typeof v !== 'object' || v === null) return false
+  const { t, p } = v as Partial<PowerHistory>
+  return Array.isArray(t) && typeof p === 'object' && p !== null && !Array.isArray(p)
 }
 
 export async function fetchStation(id: string, signal?: AbortSignal): Promise<StationApiResponse> {
