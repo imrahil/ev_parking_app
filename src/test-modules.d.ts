@@ -7,6 +7,11 @@ declare module '*/worker/src/worker.js' {
   }
 
   export default worker
+
+  export class WriteBudget {
+    constructor(state: { storage: { get(key: string): Promise<unknown>; put(key: string, value: unknown): Promise<void> } })
+    fetch(request: Request): Promise<Response>
+  }
 }
 
 declare module '*/worker/src/push.js' {

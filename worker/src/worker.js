@@ -38,6 +38,12 @@ const SUB_REFRESH_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_WATCHES_PER_SUB = 5
 const MAX_SUBS = 200
 
+// KV puts /watch may spend per UTC day (when the free plan's 1,000 writes/day
+// resets). The cron needs ~300 (`all` + `history` per run, `state` on change),
+// so this leaves it a wide margin: abuse can at worst disable arming until
+// midnight UTC, never freeze the board. Counted strictly in WriteBudget.
+const WATCH_WRITES_PER_DAY = 400
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
@@ -247,6 +253,44 @@ function json(body, status, cors) {
   })
 }
 
+/**
+ * Strict, global count of the KV puts /watch has made today. A Durable Object
+ * because the built-in rate limiter is per-location and per-minute at most,
+ * which can't hold a daily total. One instance (idFromName('watch')); its
+ * requests run one at a time, so the read-check-write below cannot race.
+ *
+ * A plain fetch() class rather than an RPC DurableObject subclass, so
+ * worker.js stays importable under node:test.
+ */
+export class WriteBudget {
+  constructor(state) {
+    this.storage = state.storage
+  }
+
+  /** GET ?n=<puts>&limit=<per day> → { ok, used } */
+  async fetch(request) {
+    const url = new URL(request.url)
+    const n = Number(url.searchParams.get('n'))
+    const limit = Number(url.searchParams.get('limit'))
+    if (!(n > 0) || !(limit > 0)) return Response.json({ error: 'Bad request' }, { status: 400 })
+
+    const day = new Date().toISOString().slice(0, 10) // UTC, like the KV reset
+    const prev = await this.storage.get('used')
+    const used = prev?.day === day ? prev.n : 0
+    if (used + n > limit) return Response.json({ ok: false, used })
+
+    await this.storage.put('used', { day, n: used + n })
+    return Response.json({ ok: true, used: used + n })
+  }
+}
+
+async function takeWriteBudget(env, n) {
+  const stub = env.WATCH_BUDGET.get(env.WATCH_BUDGET.idFromName('watch'))
+  const res = await stub.fetch(`https://budget/take?n=${n}&limit=${WATCH_WRITES_PER_DAY}`)
+  if (!res.ok) throw new Error(`budget HTTP ${res.status}`)
+  return (await res.json()).ok
+}
+
 /** POST /watch {subscription, stationId} · DELETE /watch {endpoint, stationId} */
 async function handleWatch(request, env, cors) {
   const origin = request.headers.get('Origin')
@@ -303,6 +347,22 @@ async function handleWatch(request, env, cors) {
   const now = Date.now()
   const value = JSON.stringify(subscription)
   const subFresh = existing === value && now - (metadata?.at ?? 0) < SUB_REFRESH_MS
+
+  const puts = Number(!subFresh) + Number(!armed)
+  if (puts > 0) {
+    let ok
+    try {
+      ok = await takeWriteBudget(env, puts)
+    } catch (e) {
+      // Fail closed: an uncounted write is exactly what this guards against
+      console.error('write budget', e)
+      return json({ error: 'Notifications are temporarily unavailable' }, 503, cors)
+    }
+    if (!ok) {
+      return json({ error: 'Too many notifications armed today — try again tomorrow' }, 429, cors)
+    }
+  }
+
   if (!subFresh) {
     await env.CACHE.put(`sub:${id}`, value, { expirationTtl: SUB_TTL_S, metadata: { at: now } })
   }

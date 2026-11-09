@@ -11,6 +11,16 @@ crons = ["*/10 * * * *"]
 binding = "CACHE"
 id = "d2ae45c3f2bc412cb6a952a8096315d4"
 
+# Strict daily count of the KV writes /watch may spend (see WriteBudget in
+# worker.js). SQLite-backed, which is what the free plan supports.
+[[durable_objects.bindings]]
+name = "WATCH_BUDGET"
+class_name = "WriteBudget"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["WriteBudget"]
+
 [vars]
 # The worker reads the station list from GitHub Pages, so stations stay
 # editable on GitHub without redeploying the worker.

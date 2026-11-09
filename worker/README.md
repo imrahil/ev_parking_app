@@ -118,4 +118,6 @@ useful for local dev and as an escape hatch if the worker is down.
   `state` is only written when something changed); 10ms CPU per invocation —
   each push costs ~2 ms of encryption, so `MAX_PUSHES_PER_RUN` (3) caps a run
   and the rest go out via `pending` 10 min later. If `wrangler tail` reports
-  "Exceeded CPU limit", lower it.
+  "Exceeded CPU limit", lower it. `/watch` may spend at most 400 of the
+  1k daily writes (the `WriteBudget` Durable Object counts them); past that it
+  answers 429 until 00:00 UTC, so the board's own writes are never starved.
