@@ -106,7 +106,7 @@ async function refreshAll(env) {
         if (!r.ok) return { ref, data: null, error: `HTTP ${r.status}` }
         return { ref, data: await r.json() }
       } catch (e) {
-        return { ref, data: null, error: e instanceof Error ? e.message : String(e) }
+        return { ref, data: null, error: errorMessage(e) }
       }
     })
   )
@@ -277,6 +277,20 @@ function json(body, status, cors) {
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
   })
+}
+
+/**
+ * Serves a blob straight out of KV (already JSON text). Cacheable for a
+ * minute: the cron rewrites it every 10, and the board polls every 60 s.
+ */
+function cachedJson(body, cors) {
+  return new Response(body, {
+    headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' },
+  })
+}
+
+function errorMessage(e) {
+  return e instanceof Error ? e.message : String(e)
 }
 
 /**
@@ -471,9 +485,7 @@ export default {
 
     if (url.pathname === '/history' && ['GET', 'HEAD'].includes(request.method)) {
       const body = (await env.CACHE.get(HISTORY_KEY)) ?? JSON.stringify({ t: [], p: {}, s: {} })
-      return new Response(body, {
-        headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=60' },
-      })
+      return cachedJson(body, cors)
     }
 
     if (!['GET', 'HEAD'].includes(request.method) || !['/', '/stations'].includes(url.pathname)) {
@@ -485,19 +497,9 @@ export default {
       let body = await env.CACHE.get(KV_KEY)
       if (!body) body = JSON.stringify(await refreshAll(env))
 
-      return new Response(body, {
-        headers: {
-          ...cors,
-          'Content-Type': 'application/json',
-          'Cache-Control': 'public, max-age=60',
-        },
-      })
+      return cachedJson(body, cors)
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e)
-      return new Response(JSON.stringify({ error: message }), {
-        status: 502,
-        headers: { ...cors, 'Content-Type': 'application/json' },
-      })
+      return json({ error: errorMessage(e) }, 502, cors)
     }
   },
 }

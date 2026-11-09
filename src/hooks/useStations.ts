@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { API_URL, fetchAllStations, fetchStation, loadStations } from '../api'
+import { errorMessage } from '../format'
 import type { StationRef, StationView } from '../types'
 
 export function useStations(refreshMs: number) {
@@ -26,7 +27,7 @@ export function useStations(refreshMs: number) {
           ),
         )
       })
-      .catch((e: unknown) => !cancelled && setRefsError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => !cancelled && setRefsError(errorMessage(e)))
     return () => {
       cancelled = true
     }
@@ -85,7 +86,7 @@ export function useStations(refreshMs: number) {
               [ref.id]: {
                 ref,
                 loading: false,
-                error: e instanceof Error ? e.message : String(e),
+                error: errorMessage(e),
                 data: prev[ref.id]?.data ?? null,
                 fetchedAt: prev[ref.id]?.fetchedAt ?? null,
               },
@@ -103,7 +104,7 @@ export function useStations(refreshMs: number) {
         else await refreshDirect()
       } catch (e: unknown) {
         // API mode only; stale views are kept so the board stays usable
-        if (!ac.signal.aborted) setRefsError(e instanceof Error ? e.message : String(e))
+        if (!ac.signal.aborted) setRefsError(errorMessage(e))
       } finally {
         refreshing = false
       }

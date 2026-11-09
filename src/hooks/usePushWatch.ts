@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { API_URL, armWatch, disarmWatch, fetchWatches, subIdFor } from '../api'
+import { errorMessage } from '../format'
 import type { PushSubscriptionPayload } from '../types'
 
 const VAPID_PUBLIC_KEY: string = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? ''
@@ -131,7 +132,7 @@ export function usePushWatch() {
       await armWatch(sub.toJSON() as PushSubscriptionPayload, stationId)
       setWatches((prev) => (prev.includes(stationId) ? prev : [...prev, stationId]))
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorMessage(e))
     } finally {
       setBusy(null)
     }
@@ -145,7 +146,7 @@ export function usePushWatch() {
       if (sub) await disarmWatch(sub.endpoint, stationId)
       setWatches((prev) => prev.filter((id) => id !== stationId))
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(errorMessage(e))
     } finally {
       setBusy(null)
     }

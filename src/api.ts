@@ -13,16 +13,19 @@ const BASE = 'https://www.ecarup.com/api/stations'
 // see worker/README.md). Empty -> poll ecarup.com directly from the browser.
 export const API_URL: string = import.meta.env.VITE_API_URL ?? ''
 
-export async function fetchAllStations(signal?: AbortSignal): Promise<AllStationsResponse> {
-  const res = await fetch(API_URL, { signal })
+/** GET a JSON body; any non-2xx rejects with `HTTP <status>`. */
+async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(url, { signal })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
+export function fetchAllStations(signal?: AbortSignal): Promise<AllStationsResponse> {
+  return getJson(API_URL, signal)
+}
+
 export async function fetchHistory(signal?: AbortSignal): Promise<PowerHistory> {
-  const res = await fetch(apiUrl('history'), { signal })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const body: unknown = await res.json()
+  const body = await getJson<unknown>(apiUrl('history'), signal)
   if (!isPowerHistory(body)) throw new Error('Malformed history')
   return body
 }
@@ -33,10 +36,8 @@ function isPowerHistory(v: unknown): v is PowerHistory {
   return Array.isArray(t) && typeof p === 'object' && p !== null && !Array.isArray(p)
 }
 
-export async function fetchStation(id: string, signal?: AbortSignal): Promise<StationApiResponse> {
-  const res = await fetch(`${BASE}?id=${encodeURIComponent(id)}`, { signal })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
+export function fetchStation(id: string, signal?: AbortSignal): Promise<StationApiResponse> {
+  return getJson(`${BASE}?id=${encodeURIComponent(id)}`, signal)
 }
 
 export async function loadStations(): Promise<StationRef[]> {
@@ -69,29 +70,31 @@ export async function subIdFor(endpoint: string): Promise<string> {
     .replace(/=+$/, '')
 }
 
-export async function armWatch(
-  subscription: PushSubscriptionPayload,
-  stationId: string,
-): Promise<void> {
+/**
+ * POST or DELETE /watch. A refusal rejects with the worker's own `error` text,
+ * which is written for the user (which cap or daily budget was hit, and what
+ * happens next); `HTTP <status>` only when the body carries none.
+ */
+async function sendWatch(method: 'POST' | 'DELETE', body: object): Promise<void> {
   const res = await fetch(apiUrl('watch'), {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ subscription, stationId }),
+    body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(((await res.json()) as { error?: string }).error ?? `HTTP ${res.status}`)
+  if (res.ok) return
+  const { error } = (await res.json().catch(() => ({}))) as { error?: unknown }
+  throw new Error(typeof error === 'string' ? error : `HTTP ${res.status}`)
 }
 
-export async function disarmWatch(endpoint: string, stationId: string): Promise<void> {
-  const res = await fetch(apiUrl('watch'), {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ endpoint, stationId }),
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+export function armWatch(subscription: PushSubscriptionPayload, stationId: string): Promise<void> {
+  return sendWatch('POST', { subscription, stationId })
+}
+
+export function disarmWatch(endpoint: string, stationId: string): Promise<void> {
+  return sendWatch('DELETE', { endpoint, stationId })
 }
 
 export async function fetchWatches(sub: string): Promise<string[]> {
-  const res = await fetch(apiUrl(`watches?sub=${encodeURIComponent(sub)}`))
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return ((await res.json()) as { stations: string[] }).stations
+  const { stations } = await getJson<{ stations: string[] }>(apiUrl(`watches?sub=${encodeURIComponent(sub)}`))
+  return stations
 }
