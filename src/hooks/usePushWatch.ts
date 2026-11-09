@@ -118,19 +118,14 @@ export function usePushWatch() {
     }
   }, [state])
 
-  const arm = useCallback(async (stationId: string) => {
+  // Busy and error bookkeeping shared by arm and disarm. `action` is called
+  // before this function's first await, so whatever it does first still runs
+  // inside the user's tap — arm depends on that.
+  const run = useCallback(async (stationId: string, action: () => Promise<void>) => {
     setBusy(stationId)
     setError(null)
     try {
-      // Must stay the first await: iOS only accepts this inside a user gesture
-      const permission = await Notification.requestPermission()
-      if (permission !== 'granted') {
-        setState(permission === 'denied' ? 'blocked' : 'ready')
-        return
-      }
-      const sub = await subscribe()
-      await armWatch(sub.toJSON() as PushSubscriptionPayload, stationId)
-      setWatches((prev) => (prev.includes(stationId) ? prev : [...prev, stationId]))
+      await action()
     } catch (e: unknown) {
       setError(errorMessage(e))
     } finally {
@@ -138,19 +133,31 @@ export function usePushWatch() {
     }
   }, [])
 
-  const disarm = useCallback(async (stationId: string) => {
-    setBusy(stationId)
-    setError(null)
-    try {
-      const sub = await currentSubscription()
-      if (sub) await disarmWatch(sub.endpoint, stationId)
-      setWatches((prev) => prev.filter((id) => id !== stationId))
-    } catch (e: unknown) {
-      setError(errorMessage(e))
-    } finally {
-      setBusy(null)
-    }
-  }, [])
+  const arm = useCallback(
+    (stationId: string) =>
+      run(stationId, async () => {
+        // Must stay the first await: iOS only accepts this inside a user gesture
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          setState(permission === 'denied' ? 'blocked' : 'ready')
+          return
+        }
+        const sub = await subscribe()
+        await armWatch(sub.toJSON() as PushSubscriptionPayload, stationId)
+        setWatches((prev) => (prev.includes(stationId) ? prev : [...prev, stationId]))
+      }),
+    [run],
+  )
+
+  const disarm = useCallback(
+    (stationId: string) =>
+      run(stationId, async () => {
+        const sub = await currentSubscription()
+        if (sub) await disarmWatch(sub.endpoint, stationId)
+        setWatches((prev) => prev.filter((id) => id !== stationId))
+      }),
+    [run],
+  )
 
   const toggle = useCallback(
     (stationId: string) => (watches.includes(stationId) ? disarm(stationId) : arm(stationId)),
