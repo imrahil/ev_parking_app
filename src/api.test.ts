@@ -84,6 +84,18 @@ describe('worker client', () => {
     expect(JSON.parse(init.body as string)).toEqual({ endpoint: 'https://fcm.googleapis.com/fcm/send/a', stationId: uuid(2) })
   })
 
+  it('disarmWatch surfaces the worker error too', async () => {
+    vi.stubGlobal('fetch', async () => jsonResponse({ error: 'Too many notifications turned off today' }, 429))
+    await expect(disarmWatch('https://fcm.googleapis.com/fcm/send/a', uuid(2))).rejects.toThrow(
+      'Too many notifications turned off today',
+    )
+  })
+
+  it('a watch refusal without a JSON error falls back to the status', async () => {
+    vi.stubGlobal('fetch', async () => new Response('<html>Bad gateway</html>', { status: 502 }))
+    await expect(disarmWatch('https://fcm.googleapis.com/fcm/send/a', uuid(2))).rejects.toThrow('HTTP 502')
+  })
+
   it('fetchWatches looks watches up by subscription id', async () => {
     const fetch = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => jsonResponse({ stations: [uuid(3)] }))
     vi.stubGlobal('fetch', fetch)
