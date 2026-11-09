@@ -22,6 +22,14 @@ const TIME_ZONE = 'Europe/Zurich'
 // 1 (stations.json) + one per station, and what's left is our push budget.
 const MAX_EXTERNAL_SUBREQUESTS = 50
 
+// Free plan: 10ms of CPU per invocation. Each push costs ~2ms of RFC 8291
+// encryption (fresh ECDH key pair + HKDF + AES-GCM) on top of ~1-2ms for the
+// refresh itself, so more than a few pushes in one run gets the invocation
+// killed — and a kill mid-deliver() loses the rest silently, because `state`
+// is already written and they are no longer transitions. Overflow goes to
+// `pending` and is delivered on the next run (+10 min).
+const MAX_PUSHES_PER_RUN = 3
+
 const WATCH_TTL_S = 8 * 60 * 60 // a forgotten watch expires itself, no KV write
 const SUB_TTL_S = 90 * 24 * 60 * 60
 const MAX_WATCHES_PER_SUB = 5
@@ -163,7 +171,10 @@ async function deliver(env, payload, freed, hadPending) {
   }
 
   const names = new Map(payload.stations.map((s) => [s.ref.id, s.data?.Name ?? s.ref.name]))
-  let budget = Math.max(0, MAX_EXTERNAL_SUBREQUESTS - 1 - payload.stations.length)
+  let budget = Math.max(
+    0,
+    Math.min(MAX_PUSHES_PER_RUN, MAX_EXTERNAL_SUBREQUESTS - 1 - payload.stations.length)
+  )
   const undelivered = new Set()
 
   for (const { key, stationId, sub } of targets) {

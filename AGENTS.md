@@ -160,8 +160,11 @@ matters. See `worker/README.md` for the operational side.
   emptied overnight.
 - **Watches are one-shot**: delivered → the `watch:` key is deleted. They also
   carry an 8h `expirationTtl`, so forgotten ones expire with no KV write.
-- **The push budget is `50 - 1 - stations.length`** external subrequests.
-  Overflow goes to the `pending` key and retries next refresh — the state diff
+- **The push budget is `min(3, 50 - 1 - stations.length)`** per run. The
+  second term is the external-subrequest limit; the `3` is the free plan's
+  10 ms CPU limit — each push is ~2 ms of RFC 8291 crypto, and a CPU kill
+  mid-delivery loses the remaining pushes silently (`state` is already
+  written). Overflow goes to the `pending` key and retries next refresh — the state diff
   can't find it again, because by then it is no longer a transition.
 - KV layout: `all` (board), `history`, `state` (last State per station, written only on
   change), `sub:<subId>`, `watch:<stationId>:<subId>`, `pending`. Watch key

@@ -226,9 +226,9 @@ test('a transient push failure keeps the watch armed and retries next run', asyn
 })
 
 test('push budget is capped by remaining subrequests, overflow carried', async () => {
-  // 45 stations => 50 - 1 - 45 = 4 pushes of headroom
+  // 47 stations => 50 - 1 - 47 = 2 pushes of headroom (below the CPU cap)
   const states = {}
-  for (let i = 1; i <= 45; i++) states[uuid(i)] = 2
+  for (let i = 1; i <= 47; i++) states[uuid(i)] = 2
   const freed = uuid(1)
   states[freed] = 1
 
@@ -243,10 +243,33 @@ test('push budget is capped by remaining subrequests, overflow carried', async (
   const pushes = installFetch(states)
   await worker.scheduled({ scheduledTime: DAY }, await envWith(kv, vapid))
 
-  assert.equal(pushes.length, 4, `sent ${pushes.length}, expected the 4 that fit`)
+  assert.equal(pushes.length, 2, `sent ${pushes.length}, expected the 2 that fit`)
   assert.deepEqual(await kv.get('pending', 'json'), [freed], 'overflow carried to next run')
   const left = [...kv.store.keys()].filter((k) => k.startsWith('watch:'))
-  assert.equal(left.length, 2, 'undelivered watches stay armed')
+  assert.equal(left.length, 4, 'undelivered watches stay armed')
+})
+
+test('pushes per run are capped for CPU, the rest go out next run', async () => {
+  // Few stations, so subrequests are plentiful — only the CPU cap applies
+  const freed = uuid(1)
+  const seed = { state: JSON.stringify({ [freed]: 2, [uuid(2)]: 2 }) }
+  for (let i = 0; i < 5; i++) {
+    seed[`sub:S${i}`] = JSON.stringify(await makeSubscription('fcm.googleapis.com', `s${i}`))
+    seed[`watch:${freed}:S${i}`] = ''
+  }
+  const kv = makeKV(seed)
+  const env = await envWith(kv, vapid)
+
+  let pushes = installFetch({ [freed]: 1, [uuid(2)]: 2 })
+  await worker.scheduled({ scheduledTime: DAY }, env)
+  assert.equal(pushes.length, 3, `sent ${pushes.length}, expected the per-run cap of 3`)
+  assert.deepEqual(await kv.get('pending', 'json'), [freed])
+
+  pushes = installFetch({ [freed]: 1, [uuid(2)]: 2 })
+  await worker.scheduled({ scheduledTime: DAY }, env)
+  assert.equal(pushes.length, 2, 'the remaining 2 go out on the next run')
+  assert.equal(kv.store.has('pending'), false, 'pending cleared once all delivered')
+  assert.equal([...kv.store.keys()].filter((k) => k.startsWith('watch:')).length, 0)
 })
 
 // --- HTTP endpoints -------------------------------------------------------
