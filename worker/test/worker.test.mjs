@@ -35,27 +35,45 @@ async function makeSubscription(host = 'fcm.googleapis.com', id = 'a') {
 
 function makeKV(initial = {}) {
   const store = new Map(Object.entries(initial))
-  return {
+  const meta = new Map() // key -> { metadata, expiration }
+  const kv = {
     store,
+    meta,
+    writes: 0, // puts + deletes: what the free plan's daily write budget counts
     async get(key, type) {
       const v = store.get(key)
       if (v === undefined) return null
       return type === 'json' ? JSON.parse(v) : v
     },
-    async put(key, value) {
+    async getWithMetadata(key) {
+      const v = store.get(key)
+      return { value: v ?? null, metadata: v === undefined ? null : (meta.get(key)?.metadata ?? null) }
+    },
+    async put(key, value, opts = {}) {
+      kv.writes++
       store.set(key, value)
+      meta.set(key, {
+        metadata: opts.metadata ?? null,
+        expiration: opts.expirationTtl ? Math.floor(Date.now() / 1000) + opts.expirationTtl : undefined,
+      })
     },
     async delete(key) {
+      kv.writes++
       store.delete(key)
+      meta.delete(key)
     },
     async list({ prefix = '', limit = 1000 } = {}) {
       const keys = [...store.keys()]
         .filter((k) => k.startsWith(prefix))
         .slice(0, limit)
-        .map((name) => ({ name }))
+        .map((name) => {
+          const expiration = meta.get(name)?.expiration
+          return expiration ? { name, expiration } : { name }
+        })
       return { keys, list_complete: true }
     },
   }
+  return kv
 }
 
 const STATIONS_JSON_URL = 'https://example.test/stations.json'
@@ -358,6 +376,54 @@ test('re-arming an already watched station is idempotent, not a cap hit', async 
   }
   const again = await worker.fetch(post({ subscription: sub, stationId: uuid(3) }), env)
   assert.equal(again.status, 200)
+})
+
+test('re-arming the same watch costs no KV writes', async () => {
+  const kv = makeKV()
+  installFetch({})
+  const sub = await makeSubscription()
+  const env = await envWith(kv, vapid)
+  const first = await (await worker.fetch(post({ subscription: sub, stationId: uuid(1) }), env)).json()
+  assert.equal(kv.writes, 2, 'first arm writes sub + watch')
+
+  for (let i = 0; i < 50; i++) {
+    const r = await worker.fetch(post({ subscription: sub, stationId: uuid(1) }), env)
+    assert.equal(r.status, 200)
+  }
+  assert.equal(kv.writes, 2, 'a retry loop burns nothing')
+
+  const again = await (await worker.fetch(post({ subscription: sub, stationId: uuid(1) }), env)).json()
+  assert.equal(again.sub, first.sub)
+  assert.ok(again.expiresIn > 0 && again.expiresIn <= first.expiresIn, 'reports the original expiry')
+
+  await worker.fetch(post({ subscription: sub, stationId: uuid(2) }), env)
+  assert.equal(kv.writes, 3, 'a new station writes only its watch')
+})
+
+test('a changed or week-old subscription is rewritten', async () => {
+  const kv = makeKV()
+  installFetch({})
+  const sub = await makeSubscription()
+  const env = await envWith(kv, vapid)
+  const { sub: id } = await (await worker.fetch(post({ subscription: sub, stationId: uuid(1) }), env)).json()
+
+  // Rotated keys on the same endpoint must replace the stored copy
+  const rotated = { ...sub, keys: { ...sub.keys, auth: b64url(crypto.getRandomValues(new Uint8Array(16))) } }
+  await worker.fetch(post({ subscription: rotated, stationId: uuid(1) }), env)
+  assert.deepEqual(await kv.get(`sub:${id}`, 'json'), rotated)
+  assert.equal(kv.writes, 3)
+
+  // Unchanged but last written 8 days ago: rewritten so the 90-day TTL keeps moving
+  kv.meta.get(`sub:${id}`).metadata = { at: Date.now() - 8 * 24 * 60 * 60 * 1000 }
+  await worker.fetch(post({ subscription: rotated, stationId: uuid(1) }), env)
+  assert.equal(kv.writes, 4)
+  assert.ok(Date.now() - kv.meta.get(`sub:${id}`).metadata.at < 1000)
+
+  // Subscriptions stored before metadata existed get refreshed once, then settle
+  kv.meta.get(`sub:${id}`).metadata = null
+  await worker.fetch(post({ subscription: rotated, stationId: uuid(1) }), env)
+  await worker.fetch(post({ subscription: rotated, stationId: uuid(1) }), env)
+  assert.equal(kv.writes, 5)
 })
 
 test('DELETE /watch disarms, GET /watches lists what is armed', async () => {

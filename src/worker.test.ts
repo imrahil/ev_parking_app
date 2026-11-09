@@ -22,6 +22,9 @@ function makeKV() {
       const v = store.get(key)
       return v === undefined ? null : type === 'json' ? JSON.parse(v) : v
     },
+    async getWithMetadata(key: string) {
+      return { value: store.get(key) ?? null, metadata: null }
+    },
     async put(key: string, value: string) {
       store.set(key, value)
     },
