@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { jsonResponse, requestUrl, uuid } from '../test/fixtures'
 
 const ENDPOINT = 'https://fcm.googleapis.com/fcm/send/device-1'
@@ -148,5 +148,65 @@ describe('arming and disarming', () => {
 
     expect(result.current.watches).toEqual([uuid(1), uuid(2)])
     await waitFor(() => expect(result.current.watches).toEqual([uuid(2)]))
+  })
+})
+
+describe('re-sync on focus', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const syncs = (fetch: ReturnType<typeof stubWorker>) =>
+    fetch.mock.calls.filter(([input]) => requestUrl(input).includes('/watches?')).length
+
+  /** Fire a focus and let any sync it starts reach fetch before asserting. */
+  async function focus(act: (cb: () => Promise<void>) => Promise<void>) {
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+      await new Promise((r) => setTimeout(r, 50)) // only Date is faked
+    })
+  }
+
+  async function mount(watches: string[]) {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-09T12:00:00Z'))
+    stubPushApis({ subscribed: true })
+    const fetch = stubWorker(watches)
+    const { act, renderHook, usePushWatch, waitFor } = await load()
+    const { FOCUS_SYNC_MS } = await import('./usePushWatch')
+    const { result } = renderHook(() => usePushWatch())
+    await waitFor(() => expect(syncs(fetch)).toBe(1)) // load always syncs
+    await waitFor(() => expect(result.current.watches).toEqual(watches))
+    return { fetch, act, waitFor, result, FOCUS_SYNC_MS }
+  }
+
+  it('skips the sync when no bell is lit', async () => {
+    const { fetch, act, FOCUS_SYNC_MS } = await mount([])
+    vi.setSystemTime(Date.now() + FOCUS_SYNC_MS + 1)
+    await focus(act)
+    expect(syncs(fetch)).toBe(1)
+  })
+
+  it('skips the sync within FOCUS_SYNC_MS of the last one', async () => {
+    const { fetch, act, FOCUS_SYNC_MS } = await mount([uuid(1)])
+    vi.setSystemTime(Date.now() + FOCUS_SYNC_MS - 1000)
+    await focus(act)
+    expect(syncs(fetch)).toBe(1)
+  })
+
+  it('syncs when a bell is lit and the last sync is old, then throttles again', async () => {
+    const { fetch, act, waitFor, result, FOCUS_SYNC_MS } = await mount([uuid(1)])
+    // The watch fired while the app was in the background
+    fetch.mockImplementation(async (input: RequestInfo | URL) => {
+      if (requestUrl(input).includes('/watches?')) return jsonResponse({ stations: [] })
+      throw new Error('unexpected fetch')
+    })
+    vi.setSystemTime(Date.now() + FOCUS_SYNC_MS + 1)
+    await focus(act)
+    await waitFor(() => expect(syncs(fetch)).toBe(2))
+    await waitFor(() => expect(result.current.watches).toEqual([]))
+
+    await focus(act)
+    expect(syncs(fetch)).toBe(2)
   })
 })

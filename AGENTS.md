@@ -195,6 +195,11 @@ matters. See `worker/README.md` for the operational side.
 - **`public/sw.js` must never grow a `fetch` handler or precaching.** It exists
   only to receive pushes; a caching SW on GitHub Pages ships a stale bundle
   forever.
+- **`usePushWatch` re-syncs bells sparingly.** `GET /watches` always runs on
+  load (it also recovers watches after a reinstall), but on focus only when a
+  bell is lit *and* the last sync is older than `FOCUS_SYNC_MS` (10 min, the
+  cron cadence). Each call spends a KV list from the public budget that
+  arming shares, so don't put it back on every `visibilitychange`.
 - iOS only exposes push to an installed PWA (Add to Home Screen, 16.4+).
   `usePushWatch` detects that and reports `needs-install` rather than showing a
   bell that cannot work.
