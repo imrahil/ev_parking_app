@@ -70,11 +70,18 @@ public/stations.json ──(HTTP read on every refresh)──┐
 
 The pieces that need reading together:
 
-- **`worker/src/worker.js`** — `refreshAll()` fetches `STATIONS_JSON_URL`
+- **`worker/src/board.js`** — `refreshAll()` fetches `STATIONS_JSON_URL`
   (set in `wrangler.toml` [vars], pointing at the GitHub Pages copy of
   `stations.json`), fans out one fetch per station, and writes
   `{ updatedAt, stations: [{ ref, data, error? }] }` to KV under the key
-  `all`. `fetch()` serves that blob and warms it on-demand if KV is empty.
+  `all`.
+- **`worker/src/worker.js`** — the entry point: `scheduled()` (the cron) and
+  `fetch()` (the routes), which serves that blob and warms it on-demand if KV
+  is empty. The rest of the worker is one module per concern, listed at the
+  top of that file: `history.js`, `notify.js` (+ `push.js` for the crypto),
+  `watches.js` (`/watch`, `/watches`), `budget.js` (the `WriteBudget` Durable
+  Object, re-exported from `worker.js` because Cloudflare needs it on the
+  main module) and `http.js`.
 - **`src/hooks/useStations.ts`** — the only place that knows about the two
   modes (below). Polls every `REFRESH_MS` and on `visibilitychange`.
 - **`src/api.ts`** — `fetchAllStations()` (worker), `fetchStation()` (direct),
@@ -128,7 +135,7 @@ The pieces that need reading together:
 ## Power history
 
 Each card shows a 12 h sparkline of `ActivePower`. The cron appends one sample
-per refresh to the single KV key `history` (`appendHistory()` in `worker.js`:
+per refresh to the single KV key `history` (`appendHistory()` in `history.js`:
 `{ t: [ms…], p: { [stationId]: [kW|null…] }, s: { [stationId]: [1|0|null…] } }`,
 series aligned to `t`, `null` = failed fetch; `s` = a car is plugged in, which
 the chart shades because idle-connected reads 0 kW just like a free bay) and trims to 12 h. **Keep it one blob**: per-sample or
@@ -175,9 +182,9 @@ matters. See `worker/README.md` for the operational side.
   *names* carry both ids, so matching watchers costs a `list()` and no reads.
 - `/watch` is public and writable, unlike everything else here. The endpoint
   host allowlist in `push.js` is what stops it being an open relay; the caps in
-  `handleWatch()` are what stop it exhausting the 1000 KV-writes/day the board
+  `armWatch()` are what stop it exhausting the 1000 KV-writes/day the board
   also depends on. CORS is not the boundary. The caps bound how many keys
-  exist, not how many writes happen, so `handleWatch()` also skips any `put`
+  exist, not how many writes happen, so `armWatch()` also skips any `put`
   that changes nothing: re-arming an armed watch costs zero writes and keeps
   its original expiry, and an unchanged `sub:` is rewritten only once its
   `metadata.at` is a week old (to keep pushing out its 90-day TTL).

@@ -1,7 +1,7 @@
 // Geometry for the 12 h power chart: pure functions from history samples to
 // viewBox coordinates. The drawing is in components/PowerSparkline.tsx.
 
-// Matches HISTORY_MS in worker/src/worker.js, which trims the history it serves
+// Matches HISTORY_MS in worker/src/history.js, which trims the history it serves
 // to the same 12 h. Change both, or the chart is half empty or drops samples.
 export const HISTORY_WINDOW_MS = 12 * 60 * 60 * 1000
 // Hourly night samples are the sparsest the worker writes; a longer hole means
