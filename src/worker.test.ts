@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import worker from '../worker/src/worker.js'
 import { subId } from '../worker/src/push.js'
-import { API_URL, armWatch, disarmWatch, fetchAllStations, fetchWatches, subIdFor } from './api'
+import { API_URL, armWatch, disarmWatch, fetchAllStations, fetchHistory, fetchWatches, subIdFor } from './api'
 import { apiStation, BUSY, FREE, jsonResponse, ref, requestUrl } from './test/fixtures'
 import type { StationRef } from './types'
 
@@ -110,6 +110,23 @@ describe('GET /stations', () => {
 
     const all = await fetchAllStations()
     expect(all.stations[0].data?.State).toBe(BUSY)
+  })
+})
+
+describe('GET /history', () => {
+  it('is empty before the first cron run', async () => {
+    await expect(fetchHistory()).resolves.toEqual({ t: [], p: {} })
+  })
+
+  it('accumulates one aligned sample per cron run, in kW', async () => {
+    await worker.scheduled({ scheduledTime: new Date('2026-09-01T12:00:00Z').getTime() }, env())
+    await worker.scheduled({ scheduledTime: new Date('2026-09-01T12:10:00Z').getTime() }, env())
+
+    const h = await fetchHistory()
+    expect(h.t).toHaveLength(2)
+    for (const r of board.refs) expect(h.p[r.id]).toHaveLength(2)
+    expect(h.p[board.refs[2].id]).toEqual([null, null]) // down station = gaps, not zeros
+    expect(h.p[board.refs[0].id]).toEqual([0, 0])
   })
 })
 

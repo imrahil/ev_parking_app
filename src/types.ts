@@ -32,6 +32,13 @@ export type AllStationsResponse = {
   }[]
 }
 
+// Shape served by the Cloudflare Worker's GET /history: charging power in kW,
+// one aligned series per station id; null = no reading (the fetch failed)
+export type PowerHistory = {
+  t: number[]
+  p: Record<string, (number | null)[]>
+}
+
 export type StationView = {
   ref: StationRef
   loading: boolean

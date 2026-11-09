@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStations } from './hooks/useStations'
+import { useHistory } from './hooks/useHistory'
 import { usePushWatch } from './hooks/usePushWatch'
 import { useTheme, type Theme } from './hooks/useTheme'
 import { StationCard } from './components/StationCard'
@@ -52,6 +53,7 @@ export function App() {
   const { refs, refsError, views } = useStations(REFRESH_MS)
   const { theme, cycleTheme } = useTheme()
   const push = usePushWatch()
+  const history = useHistory()
 
   const [, setNow] = useState(0)
 
@@ -182,6 +184,7 @@ export function App() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((v) => (
             <StationCard
+              history={history ? { times: history.t, values: history.p[v.ref.id] ?? [] } : undefined}
               key={v.ref.id}
               view={v}
               watch={
