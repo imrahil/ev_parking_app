@@ -9,7 +9,9 @@ import {
   CONNECTOR_DOT,
   CARD_SURFACE,
   OUTLINE_RING,
-  type Status,
+  STATUS_TEXT,
+  STATUS_TEXT_STYLES,
+  STATUS_TEXT_DOT,
 } from '../consts/consts'
 
 export type PowerSeries = {
@@ -23,25 +25,6 @@ export type WatchControl = {
   armed: boolean
   busy: boolean
   onToggle: () => void
-}
-
-// Price-style status text, like the menu's blue «CHF 9.20»
-const STATUS_TEXT: Record<Status, string> = {
-  [STATUS.AVAILABLE]: 'Free',
-  [STATUS.OCCUPIED]: 'Occupied',
-  [STATUS.UNKNOWN]: 'Unknown',
-}
-
-const STATUS_TEXT_STYLES: Record<Status, string> = {
-  [STATUS.AVAILABLE]: 'text-mint',
-  [STATUS.OCCUPIED]: 'text-brand',
-  [STATUS.UNKNOWN]: 'text-navy/50 dark:text-white/50',
-}
-
-const STATUS_TEXT_DOT: Record<Status, string> = {
-  [STATUS.AVAILABLE]: 'bg-mint shadow-[0_0_8px] shadow-mint/60',
-  [STATUS.OCCUPIED]: 'bg-brand shadow-[0_0_8px] shadow-brand/60',
-  [STATUS.UNKNOWN]: 'bg-navy/40 dark:bg-white/40',
 }
 
 function timeAgo(ts: number | null): string {

@@ -190,29 +190,34 @@ async function notifyWatchers(env, payload, silent) {
   for (const id of pending) if (next[id] === STATE_AVAILABLE) freed.add(id)
 
   await write()
-  if (freed.size === 0) {
-    if (pending.length) await env.CACHE.delete(PENDING_KEY)
-    return
-  }
+  const undelivered = freed.size > 0 ? await deliver(env, payload, freed) : new Set()
 
-  await deliver(env, payload, freed, pending.length > 0)
+  // `pending` is settled here and nowhere else: whatever could not go out is
+  // carried to the next run, and a list that has been worked off is removed.
+  if (undelivered.size > 0) {
+    await env.CACHE.put(PENDING_KEY, JSON.stringify([...undelivered]))
+  } else if (pending.length > 0) {
+    await env.CACHE.delete(PENDING_KEY)
+  }
 }
 
-async function deliver(env, payload, freed, hadPending) {
+/**
+ * Pushes to everyone watching a station in `freed`. Returns the station ids
+ * that still have someone to notify — out of push budget, or a transient
+ * failure — for the caller to retry on the next run.
+ */
+async function deliver(env, payload, freed) {
   // Matching costs no reads — we only read the subscriptions we'll notify
   const targets = (await listWatches(env)).filter((w) => freed.has(w.stationId))
 
-  if (targets.length === 0) {
-    if (hadPending) await env.CACHE.delete(PENDING_KEY)
-    return
-  }
+  const undelivered = new Set()
+  if (targets.length === 0) return undelivered
 
   const names = new Map(payload.stations.map((s) => [s.ref.id, s.data?.Name ?? s.ref.name]))
   let budget = Math.max(
     0,
     Math.min(MAX_PUSHES_PER_RUN, MAX_EXTERNAL_SUBREQUESTS - 1 - payload.stations.length)
   )
-  const undelivered = new Set()
 
   for (const { key, stationId, sub } of targets) {
     const subscription = await env.CACHE.get(`sub:${sub}`, 'json')
@@ -247,11 +252,7 @@ async function deliver(env, payload, freed, hadPending) {
     }
   }
 
-  if (undelivered.size > 0) {
-    await env.CACHE.put(PENDING_KEY, JSON.stringify([...undelivered]))
-  } else if (hadPending) {
-    await env.CACHE.delete(PENDING_KEY)
-  }
+  return undelivered
 }
 
 function allowedOrigins(env) {
@@ -349,7 +350,10 @@ async function spendBudget(env, op, n, cors) {
   return ok ? null : json({ error: BUDGET_EXHAUSTED[op] }, 429, cors)
 }
 
-/** POST /watch {subscription, stationId} · DELETE /watch {endpoint, stationId} */
+/**
+ * POST /watch {subscription, stationId} · DELETE /watch {endpoint, stationId}
+ * Checks what both share — origin, JSON body, station id — then hands over.
+ */
 async function handleWatch(request, env, cors) {
   const origin = request.headers.get('Origin')
   if (origin && !allowedOrigins(env).includes(origin)) {
@@ -368,19 +372,25 @@ async function handleWatch(request, env, cors) {
     return json({ error: 'Invalid stationId' }, 400, cors)
   }
 
-  if (request.method === 'DELETE') {
-    if (!isPushEndpoint(body?.endpoint)) return json({ error: 'Invalid endpoint' }, 400, cors)
-    const id = await subId(body.endpoint)
-    const key = watchKey(stationId, id)
-    // A read first (100k/day): disarming what isn't armed costs no delete, so
-    // every real delete pairs with a watch put that was already budgeted.
-    if ((await env.CACHE.get(key)) === null) return json({ ok: true }, 200, cors)
-    const refused = await spendBudget(env, 'delete', 1, cors)
-    if (refused) return refused
-    await env.CACHE.delete(key)
-    return json({ ok: true }, 200, cors)
-  }
+  return request.method === 'DELETE'
+    ? disarmWatch(body, stationId, env, cors)
+    : armWatch(body, stationId, env, cors)
+}
 
+async function disarmWatch(body, stationId, env, cors) {
+  if (!isPushEndpoint(body?.endpoint)) return json({ error: 'Invalid endpoint' }, 400, cors)
+  const id = await subId(body.endpoint)
+  const key = watchKey(stationId, id)
+  // A read first (100k/day): disarming what isn't armed costs no delete, so
+  // every real delete pairs with a watch put that was already budgeted.
+  if ((await env.CACHE.get(key)) === null) return json({ ok: true }, 200, cors)
+  const refused = await spendBudget(env, 'delete', 1, cors)
+  if (refused) return refused
+  await env.CACHE.delete(key)
+  return json({ ok: true }, 200, cors)
+}
+
+async function armWatch(body, stationId, env, cors) {
   if (!pushConfigured(env)) {
     return json({ error: 'Notifications are not configured on the server' }, 503, cors)
   }

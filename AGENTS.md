@@ -40,8 +40,10 @@ worker tests, on every pull request and before every deploy.
 - **E2E (`e2e/*.spec.ts`)**: `playwright.config.ts` builds the app into
   `dist-e2e/` against a fake worker origin (`https://worker.e2e`) and serves it
   with `vite preview`. The worker is not started — its data is live ecarup.
-  Each test answers that origin with `fakeWorker()` and, for notifications,
-  replaces the browser push stack with `fakePush()` (`e2e/helpers.ts`).
+  Each test answers that origin with `fakeWorker()` (board, a matching
+  `/history`, watches) and, for notifications, replaces the browser push
+  stack with `fakePush()` (`e2e/helpers.ts`). The station builders come from
+  `src/test/fixtures.ts`, shared with the unit tests.
 
 Worker commands run from `worker/`:
 

@@ -25,6 +25,26 @@ export const STATUS_LABEL: Record<Status, string> = {
   [STATUS.UNKNOWN]: 'Unknown',
 }
 
+// The card's headline status. Price-style text, like the menu's blue «CHF 9.20»;
+// STATUS_LABEL above is the longer wording used in connector tooltips.
+export const STATUS_TEXT: Record<Status, string> = {
+  [STATUS.AVAILABLE]: 'Free',
+  [STATUS.OCCUPIED]: 'Occupied',
+  [STATUS.UNKNOWN]: 'Unknown',
+}
+
+export const STATUS_TEXT_STYLES: Record<Status, string> = {
+  [STATUS.AVAILABLE]: 'text-mint',
+  [STATUS.OCCUPIED]: 'text-brand',
+  [STATUS.UNKNOWN]: 'text-navy/50 dark:text-white/50',
+}
+
+export const STATUS_TEXT_DOT: Record<Status, string> = {
+  [STATUS.AVAILABLE]: 'bg-mint shadow-[0_0_8px] shadow-mint/60',
+  [STATUS.OCCUPIED]: 'bg-brand shadow-[0_0_8px] shadow-brand/60',
+  [STATUS.UNKNOWN]: 'bg-navy/40 dark:bg-white/40',
+}
+
 export const CONNECTOR_DOT: Record<Status, string> = {
   [STATUS.AVAILABLE]: 'bg-mint',
   [STATUS.OCCUPIED]: 'bg-busy',
