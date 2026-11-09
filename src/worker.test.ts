@@ -5,53 +5,16 @@
  * subscription id ever drift between the two sides, these fail.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import worker, { WriteBudget } from '../worker/src/worker.js'
+import worker from '../worker/src/worker.js'
 import { subId } from '../worker/src/push.js'
+// The same mock KV and in-memory WriteBudget the worker's own tests use
+import { makeBudget, makeKV } from '../worker/test/helpers.mjs'
 import { API_URL, armWatch, disarmWatch, fetchAllStations, fetchHistory, fetchWatches, subIdFor } from './api'
 import { apiStation, BUSY, FREE, jsonResponse, ref, requestUrl } from './test/fixtures'
 import type { StationRef } from './types'
 
 const STATIONS_JSON_URL = 'https://pages.test/stations.json'
 const ORIGIN = 'https://imrahil.github.io'
-
-function makeKV() {
-  const store = new Map<string, string>()
-  return {
-    store,
-    async get(key: string, type?: string) {
-      const v = store.get(key)
-      return v === undefined ? null : type === 'json' ? JSON.parse(v) : v
-    },
-    async getWithMetadata(key: string) {
-      return { value: store.get(key) ?? null, metadata: null }
-    },
-    async put(key: string, value: string) {
-      store.set(key, value)
-    },
-    async delete(key: string) {
-      store.delete(key)
-    },
-    async list({ prefix = '', limit = 1000 } = {}) {
-      const keys = [...store.keys()].filter((k) => k.startsWith(prefix)).slice(0, limit)
-      return { keys: keys.map((name) => ({ name })), list_complete: true }
-    },
-  }
-}
-
-// The real WriteBudget Durable Object over in-memory storage
-function makeBudget() {
-  const storage = new Map<string, unknown>()
-  const budget = new WriteBudget({
-    storage: {
-      get: async (key: string) => storage.get(key),
-      put: async (key: string, value: unknown) => void storage.set(key, value),
-    },
-  })
-  return {
-    idFromName: (name: string) => name,
-    get: () => ({ fetch: (url: string) => budget.fetch(new Request(url)) }),
-  }
-}
 
 let kv: ReturnType<typeof makeKV>
 let board: { refs: StationRef[]; states: Record<string, number | 'down'> }

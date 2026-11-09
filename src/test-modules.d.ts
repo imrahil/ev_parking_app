@@ -14,6 +14,20 @@ declare module '*/worker/src/worker.js' {
   }
 }
 
+declare module '*/worker/test/helpers.mjs' {
+  /** In-memory stand-in for the KV binding; `store` holds the raw values. */
+  export function makeKV(initial?: Record<string, string>): {
+    store: Map<string, string>
+    get(key: string, type?: string): Promise<unknown>
+    put(key: string, value: string, opts?: unknown): Promise<void>
+    delete(key: string): Promise<void>
+    list(opts?: { prefix?: string; limit?: number }): Promise<{ keys: { name: string }[] }>
+  }
+
+  /** The real WriteBudget over in-memory storage, shaped like the DO binding. */
+  export function makeBudget(): unknown
+}
+
 declare module '*/worker/src/push.js' {
   export function subId(endpoint: string): Promise<string>
 }
