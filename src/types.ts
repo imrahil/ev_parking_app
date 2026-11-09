@@ -42,6 +42,16 @@ export type PowerHistory = {
   s?: Record<string, (number | null)[]>
 }
 
+// One station's slice of PowerHistory, as the chart takes it; every series is
+// aligned to `times`.
+export type PowerSeries = {
+  times: number[]
+  // kW; null = no reading (the fetch failed)
+  values: (number | null)[]
+  // 1 = a car was plugged in at that sample
+  occupied?: (number | null)[]
+}
+
 export type StationView = {
   ref: StationRef
   loading: boolean

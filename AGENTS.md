@@ -134,7 +134,9 @@ series aligned to `t`, `null` = failed fetch; `s` = a car is plugged in, which
 the chart shades because idle-connected reads 0 kW just like a free bay) and trims to 12 h. **Keep it one blob**: per-sample or
 per-station keys would burn the free plan's 1000 KV writes/day. It is served by
 `GET /history` (separate from `/stations` so the 60 s board poll stays small),
-fetched by `src/hooks/useHistory.ts`. Direct mode has no history and renders no
+fetched by `src/hooks/useHistory.ts`. The chart's geometry (line segments,
+plugged-in spans, hour ticks) is pure code in `src/sparkline.ts`;
+`PowerSparkline.tsx` only draws it. Direct mode has no history and renders no
 chart. The write is best-effort (try/catch) so it can never block notifications.
 
 ## Notifications
