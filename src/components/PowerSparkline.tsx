@@ -1,102 +1,18 @@
 import { formatPower } from '../format'
+import type { PowerSeries } from '../types'
+import {
+  VIEW_H,
+  VIEW_W,
+  hourTicks,
+  occupiedSpans,
+  peakPower,
+  sparklineSegments,
+  type Point,
+} from '../sparkline'
 
-// Matches HISTORY_MS in worker/src/worker.js, which trims the history it serves
-// to the same 12 h. Change both, or the chart is half empty or drops samples.
-export const HISTORY_WINDOW_MS = 12 * 60 * 60 * 1000
-// Hourly night samples are the sparsest the worker writes; a longer hole means
-// it was down, and drawing a line across it would invent data
-const MAX_GAP_MS = 75 * 60 * 1000
-
-const W = 100
-const H = 24
-
-type Point = { x: number; y: number }
-
-/** Where time `t` falls on the x axis of a window starting at `start`. */
-const toX = (t: number, start: number) => Math.min(W, ((t - start) / HISTORY_WINDOW_MS) * W)
-
-/**
- * Splits a series into drawable runs, breaking at null readings and at long
- * time gaps. x is 0..W across the 12 h window ending at `now`, y is 0..H with
- * 0 at the top; `max` is the kW that maps to the top edge.
- */
-export function sparklineSegments(
-  times: number[],
-  values: (number | null)[],
-  now: number,
-  max: number,
-): Point[][] {
-  const start = now - HISTORY_WINDOW_MS
-  const runs: Point[][] = []
-  let run: Point[] = []
-  let lastT = -Infinity
-
-  const flush = () => {
-    if (run.length) runs.push(run)
-    run = []
-  }
-
-  times.forEach((t, i) => {
-    const v = values[i]
-    if (t < start || v === null || v === undefined || !Number.isFinite(v)) return flush()
-    if (t - lastT > MAX_GAP_MS) flush()
-    lastT = t
-    run.push({
-      x: toX(t, start),
-      y: H - (Math.max(0, v) / max) * H,
-    })
-  })
-  flush()
-  return runs
-}
-
-type Span = { x0: number; x1: number }
-
-// A lone sample still gets a visible sliver
-const MIN_SPAN_W = 0.8
-
-/**
- * Runs of consecutive "plugged in" samples as x ranges across the 12 h window.
- * Like the line, a run breaks at null readings and at long time gaps.
- */
-export function occupiedSpans(times: number[], occupied: (number | null)[], now: number): Span[] {
-  const start = now - HISTORY_WINDOW_MS
-  const spans: Span[] = []
-  let current: Span | null = null
-  let lastT = -Infinity
-
-  times.forEach((t, i) => {
-    const on = occupied[i] === 1
-    if (t < start || !on) {
-      current = null
-      return
-    }
-    const x = toX(t, start)
-    if (current && t - lastT <= MAX_GAP_MS) current.x1 = x
-    else spans.push((current = { x0: x, x1: x }))
-    lastT = t
-  })
-  return spans.map((s) => (s.x1 - s.x0 < MIN_SPAN_W ? { x0: s.x0, x1: s.x0 + MIN_SPAN_W } : s))
-}
-
-const HOUR_MS = 60 * 60 * 1000
 // Ticks hang below the baseline (the svg is overflow-visible) so they never
 // sit on top of the data
 const TICK_H = 3
-
-/**
- * x of every full clock hour in the 12 h window ending at `now`, oldest first.
- * Clock hours in the viewer's time zone, not hours-ago, so a tick is 14:00,
- * 15:00, … and the ticks slide left as time passes.
- */
-export function hourTicks(now: number): number[] {
-  const start = now - HISTORY_WINDOW_MS
-  const top = new Date(now)
-  top.setMinutes(0, 0, 0)
-  const ticks: number[] = []
-  for (let t = top.getTime(); t >= start; t -= HOUR_MS) ticks.unshift(toX(t, start))
-  return ticks
-}
 
 const line = (pts: Point[]) => pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')
 
@@ -105,15 +21,8 @@ export function PowerSparkline({
   values,
   occupied = [],
   now = Date.now(),
-}: {
-  times: number[]
-  values: (number | null)[]
-  occupied?: (number | null)[]
-  now?: number
-}) {
-  const start = now - HISTORY_WINDOW_MS
-  const inWindow = values.filter((v, i): v is number => times[i] >= start && v !== null && Number.isFinite(v))
-  const peak = inWindow.length ? Math.max(...inWindow) : 0
+}: PowerSeries & { now?: number }) {
+  const peak = peakPower(times, values, now)
   const runs = sparklineSegments(times, values, now, Math.max(peak, 1))
   const spans = occupiedSpans(times, occupied, now)
   const ticks = hourTicks(now)
@@ -136,7 +45,7 @@ export function PowerSparkline({
           (peak > 0 ? `Charging power, last 12 hours, peak ${formatPower(peak)}` : 'No charging in the last 12 hours') +
           (spans.length ? '; shaded while a car was plugged in' : '')
         }
-        viewBox={`0 0 ${W} ${H}`}
+        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         preserveAspectRatio="none"
         className="mt-1 h-8 w-full overflow-visible text-brand"
       >
@@ -146,15 +55,15 @@ export function PowerSparkline({
             x={sp.x0}
             y="0"
             width={sp.x1 - sp.x0}
-            height={H}
+            height={VIEW_H}
             className="fill-navy/10 dark:fill-white/15"
           />
         ))}
         <line
           x1="0"
-          x2={W}
-          y1={H}
-          y2={H}
+          x2={VIEW_W}
+          y1={VIEW_H}
+          y2={VIEW_H}
           stroke="currentColor"
           strokeOpacity="0.2"
           strokeWidth="1"
@@ -162,7 +71,7 @@ export function PowerSparkline({
         />
         <g data-hour-ticks aria-hidden stroke="currentColor" strokeOpacity="0.35" strokeWidth="1">
           {ticks.map((x) => (
-            <line key={x} x1={x} x2={x} y1={H} y2={H + TICK_H} vectorEffect="non-scaling-stroke" />
+            <line key={x} x1={x} x2={x} y1={VIEW_H} y2={VIEW_H + TICK_H} vectorEffect="non-scaling-stroke" />
           ))}
         </g>
         {runs.map((pts, i) =>
@@ -171,7 +80,7 @@ export function PowerSparkline({
           ) : (
             <g key={i}>
               <path
-                d={`${line(pts)} L${pts[pts.length - 1].x.toFixed(2)} ${H} L${pts[0].x.toFixed(2)} ${H} Z`}
+                d={`${line(pts)} L${pts[pts.length - 1].x.toFixed(2)} ${VIEW_H} L${pts[0].x.toFixed(2)} ${VIEW_H} Z`}
                 fill="currentColor"
                 fillOpacity="0.15"
               />

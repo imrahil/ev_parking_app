@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { API_URL, armWatch, disarmWatch, fetchWatches, subIdFor } from '../api'
 import { errorMessage } from '../format'
+import { readStringArray } from '../storage'
 import type { PushSubscriptionPayload } from '../types'
 
 const VAPID_PUBLIC_KEY: string = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? ''
@@ -41,15 +42,6 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return Uint8Array.from(raw, (c) => c.charCodeAt(0))
 }
 
-function readStoredWatches(): string[] {
-  try {
-    const v: unknown = JSON.parse(localStorage.getItem(WATCHES_KEY) ?? '[]')
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
-  } catch {
-    return []
-  }
-}
-
 /** The SW is registered lazily — nobody who ignores notifications gets one. */
 async function subscribe(): Promise<PushSubscription> {
   const reg = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
@@ -70,7 +62,7 @@ async function currentSubscription(): Promise<PushSubscription | null> {
 
 export function usePushWatch() {
   const [state, setState] = useState<PushState>(() => detect())
-  const [watches, setWatches] = useState<string[]>(() => readStoredWatches())
+  const [watches, setWatches] = useState<string[]>(() => readStringArray(WATCHES_KEY))
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Read by the focus listener without re-subscribing it on every change

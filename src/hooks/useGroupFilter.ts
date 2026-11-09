@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { readStringArray } from '../storage'
 
 const FILTER_KEY = 'parking-app:groupFilter'
 const HIDDEN_KEY = 'parking-app:hiddenGroups'
@@ -8,24 +9,13 @@ function readStoredFilter(): string {
   return localStorage.getItem(FILTER_KEY) ?? ''
 }
 
-function readStoredHidden(): string[] {
-  const raw = localStorage.getItem(HIDDEN_KEY)
-  if (!raw) return DEFAULT_HIDDEN
-  try {
-    const v: unknown = JSON.parse(raw)
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : DEFAULT_HIDDEN
-  } catch {
-    return DEFAULT_HIDDEN
-  }
-}
-
 /**
  * Which group the board is filtered to ('' = All) and which groups are hidden
  * in settings, both persisted in localStorage.
  */
 export function useGroupFilter() {
   const [activeGroup, setActiveGroup] = useState<string>(() => readStoredFilter())
-  const [hiddenGroups, setHiddenGroups] = useState<string[]>(() => readStoredHidden())
+  const [hiddenGroups, setHiddenGroups] = useState<string[]>(() => readStringArray(HIDDEN_KEY, DEFAULT_HIDDEN))
 
   useEffect(() => {
     localStorage.setItem(FILTER_KEY, activeGroup)

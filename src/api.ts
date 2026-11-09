@@ -13,6 +13,9 @@ const BASE = 'https://www.ecarup.com/api/stations'
 // see worker/README.md). Empty -> poll ecarup.com directly from the browser.
 export const API_URL: string = import.meta.env.VITE_API_URL ?? ''
 
+// The worker's other routes sit next to /stations
+const apiUrl = (path: string) => new URL(path, API_URL).toString()
+
 /** GET a JSON body; any non-2xx rejects with `HTTP <status>`. */
 async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(url, { signal })
@@ -54,8 +57,6 @@ export function stateToStatus(state: number | undefined): Status {
 }
 
 // --- Notification watches (API mode only; the worker sends the pushes) ---
-
-const apiUrl = (path: string) => new URL(path, API_URL).toString()
 
 /**
  * Stable id for a push subscription — SHA-256 of the endpoint, base64url.

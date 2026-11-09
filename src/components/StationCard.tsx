@@ -1,5 +1,5 @@
-import type { StationView } from '../types'
-import { formatPower } from '../format'
+import type { PowerSeries, StationView } from '../types'
+import { formatPower, timeAgo } from '../format'
 import { PowerSparkline } from './PowerSparkline'
 import { stateToStatus } from '../api'
 import {
@@ -14,28 +14,10 @@ import {
   STATUS_TEXT_DOT,
 } from '../consts/consts'
 
-export type PowerSeries = {
-  times: number[]
-  values: (number | null)[]
-  // 1 = a car was plugged in at that sample
-  occupied?: (number | null)[]
-}
-
 export type WatchControl = {
   armed: boolean
   busy: boolean
   onToggle: () => void
-}
-
-function timeAgo(ts: number | null): string {
-  if (!ts) return '—'
-  const s = Math.floor((Date.now() - ts) / 1000)
-  if (s < 5) return 'just now'
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  return `${h}h ago`
 }
 
 export function StationCard({
@@ -101,7 +83,7 @@ export function StationCard({
         </div>
       )}
 
-      {history && <PowerSparkline times={history.times} values={history.values} occupied={history.occupied} />}
+      {history && <PowerSparkline {...history} />}
 
       <div className="mt-4 flex items-center gap-2 text-xs text-navy/50 dark:text-white/50">
         <span className="min-w-0 truncate">

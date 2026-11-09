@@ -5,7 +5,7 @@ const KV_KEY = 'all'
 const STATE_KEY = 'state' // last seen State per station, for transition detection
 const PENDING_KEY = 'pending' // stations freed but not fully notified yet
 const HISTORY_KEY = 'history' // charging power over the last HISTORY_MS, all stations in one blob
-// Matches HISTORY_WINDOW_MS in src/components/PowerSparkline.tsx — the chart
+// Matches HISTORY_WINDOW_MS in src/sparkline.ts — the chart
 // draws exactly this window, so change both.
 const HISTORY_MS = 12 * 60 * 60 * 1000
 
