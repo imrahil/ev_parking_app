@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { HISTORY_WINDOW_MS, occupiedSpans, PowerSparkline, sparklineSegments } from './PowerSparkline'
+import { HISTORY_WINDOW_MS, hourTicks, occupiedSpans, PowerSparkline, sparklineSegments } from './PowerSparkline'
 
 const NOW = 100 * HISTORY_WINDOW_MS
 const MIN = 60_000
@@ -56,7 +56,33 @@ describe('occupiedSpans', () => {
   })
 })
 
+describe('hourTicks', () => {
+  // Local time, in January so no DST change falls inside the window
+  const at1230 = new Date(2026, 0, 15, 12, 30).getTime()
+
+  it('puts one tick on every full clock hour in the window, oldest first', () => {
+    const ticks = hourTicks(at1230)
+    // 01:00 … 12:00; 00:30 is the left edge, so 00:00 is out
+    expect(ticks).toHaveLength(12)
+    expect(ticks[0]).toBeCloseTo((0.5 / 12) * 100)
+    expect(ticks[11]).toBeCloseTo((11.5 / 12) * 100)
+    expect(ticks[1] - ticks[0]).toBeCloseTo(100 / 12)
+  })
+
+  it('ticks both edges when now is exactly on the hour', () => {
+    const ticks = hourTicks(new Date(2026, 0, 15, 12, 0).getTime())
+    expect(ticks).toHaveLength(13)
+    expect(ticks[0]).toBeCloseTo(0)
+    expect(ticks[12]).toBeCloseTo(100)
+  })
+})
+
 describe('PowerSparkline', () => {
+  it('draws the hour ticks even with no readings', () => {
+    const { container } = render(<PowerSparkline now={new Date(2026, 0, 15, 12, 30).getTime()} times={[]} values={[]} />)
+    expect(container.querySelectorAll('[data-hour-ticks] line')).toHaveLength(12)
+  })
+
   it('shades plugged-in periods and says so in the legend', () => {
     const { container } = render(
       <PowerSparkline now={NOW} times={[NOW - 20 * MIN, NOW - 10 * MIN]} values={[0, 0]} occupied={[1, 1]} />,

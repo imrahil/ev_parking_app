@@ -1,9 +1,10 @@
 # parking-status worker
 
 Cloudflare Worker that polls all ecarup stations every 10 minutes (cron
-trigger), stores the aggregate in KV, and serves it to the app from a single
-endpoint: `GET /stations`. It also sends the "your charger is free" Web Push
-notifications. See the repo `README.md` for how the app consumes it.
+trigger), stores the aggregate in KV, and serves it to the app from
+`GET /stations`. It also keeps a 12-hour charging-power history
+(`GET /history`) and sends the "your charger is free" Web Push notifications.
+See the repo `README.md` for how the app consumes it.
 
 ```sh
 npm test   # node:test, no dependencies
@@ -28,6 +29,10 @@ npx wrangler secret put VAPID_PRIVATE_KEY
 # 4. Deploy — the printed URL is the API endpoint
 npx wrangler deploy
 ```
+
+The deploy also creates the `WriteBudget` Durable Object (binding
+`WATCH_BUDGET`) from the migration in `wrangler.toml`; it needs no setup of
+its own.
 
 The deploy prints a URL like `https://parking-status.<subdomain>.workers.dev`.
 Put that (plus `/stations`) into `VITE_API_URL` — see "Frontend" below.
@@ -69,7 +74,14 @@ single KV key, ~1 write per refresh.
 Writes are restricted to the origins in `ALLOWED_ORIGINS`, the subscription
 endpoint must be on a known push service, and each subscription may hold 5
 watches (200 subscriptions total). Those caps matter: the free plan allows
-1,000 KV writes/day and the board shares that budget.
+1,000 KV writes/day and the board shares that budget. On top of the caps,
+these endpoints have a daily KV budget of their own (see "Limits" below).
+
+A refusal carries an `error` string written for the user, and the app shows it
+as-is: 429 when a cap or the daily budget is hit, 503 when notifications are
+not configured or the budget counter cannot be reached (it fails closed).
+Re-arming an armed watch writes nothing and keeps its original expiry;
+disarming a watch that is not armed spends no delete.
 
 ## Notifications
 
@@ -114,8 +126,9 @@ useful for local dev and as an escape hatch if the worker is down.
 - **Limits** (free plan): 100k requests/day; **50 _external_ subrequests** per
   invocation (KV is not external — it has its own 1000/invocation budget), so
   `stations.json` + one fetch per station leaves the rest as the push budget,
-  and the station list is capped near 49; KV 1k writes/day (cron uses ~94, and
-  `state` is only written when something changed); 10ms CPU per invocation —
+  and the station list is capped near 49; KV 1k writes/day (the cron runs ~94
+  times a day and writes `all` and `history` each time, so ~190, plus `state`
+  only when something changed); 10ms CPU per invocation —
   each push costs ~2 ms of encryption, so `MAX_PUSHES_PER_RUN` (3) caps a run
   and the rest go out via `pending` 10 min later. If `wrangler tail` reports
   "Exceeded CPU limit", lower it. `/watch` and `/watches` may spend at most
