@@ -132,6 +132,35 @@ describe('App', () => {
     expect(await screen.findByText('No stations match the current filter.')).toBeTruthy()
   })
 
+  it('"Free only" hides busy and offline cards, keeps the counts, and is remembered', async () => {
+    serve()
+    await renderApp()
+    const toggle = screen.getByRole('switch', { name: /Free only/ })
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-checked')).toBe('true')
+    expect(cardNames()).toEqual(['Live Station 2', 'Live Station 7'])
+    expect(within(chip(/^All/)).getByText('2/5')).toBeTruthy()
+    expect(screen.getByText('2 Busy')).toBeTruthy()
+    expect(localStorage.getItem('parking-app:freeOnly')).toBe('1')
+
+    fireEvent.click(chip(/^Weisshorn/))
+    expect(cardNames()).toEqual([])
+    expect(screen.getByText('No free chargers right now.')).toBeTruthy()
+
+    fireEvent.click(toggle)
+    expect(cardNames()).toEqual(['Live Station 5', 'Live Station 6'])
+    expect(localStorage.getItem('parking-app:freeOnly')).toBe('0')
+  })
+
+  it('restores "Free only" on load', async () => {
+    localStorage.setItem('parking-app:freeOnly', '1')
+    serve()
+    await renderApp()
+    expect(cardNames()).toEqual(['Live Station 2', 'Live Station 7'])
+  })
+
   it('the theme button cycles auto -> light -> dark', async () => {
     serve()
     await renderApp()

@@ -14,7 +14,7 @@ import { summariseBoard } from './board'
 const REFRESH_MS = 60_000
 
 export function App() {
-  const { activeGroup, hiddenGroups, showAll, toggleGroup, toggleHidden } = useGroupFilter()
+  const { activeGroup, hiddenGroups, freeOnly, showAll, toggleGroup, toggleHidden, toggleFreeOnly } = useGroupFilter()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const { refs, refsError, views } = useStations(REFRESH_MS)
@@ -31,8 +31,8 @@ export function App() {
   }, [])
 
   const board = useMemo(
-    () => summariseBoard(refs, views, hiddenGroups, activeGroup),
-    [refs, views, hiddenGroups, activeGroup],
+    () => summariseBoard(refs, views, hiddenGroups, activeGroup, freeOnly),
+    [refs, views, hiddenGroups, activeGroup, freeOnly],
   )
 
   return (
@@ -42,6 +42,8 @@ export function App() {
         activeGroup={activeGroup}
         onShowAll={showAll}
         onToggleGroup={toggleGroup}
+        freeOnly={freeOnly}
+        onToggleFreeOnly={toggleFreeOnly}
         theme={theme}
         onCycleTheme={cycleTheme}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -55,7 +57,9 @@ export function App() {
         )}
         {board.stations.length === 0 && !refsError && (
           <div className="text-center text-navy/50 dark:text-white/50 text-sm py-12">
-            No stations match the current filter.
+            {freeOnly && board.counts.total > 0
+              ? 'No free chargers right now.'
+              : 'No stations match the current filter.'}
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

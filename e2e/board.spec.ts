@@ -79,3 +79,23 @@ test('board: a station with several connectors lists them', async ({ page }) => 
   await expect(card(page, 'Weisshorn 2').getByTitle('Connector A: Occupied')).toBeVisible()
   await expect(card(page, 'Weisshorn 2').getByTitle('Connector B: Available')).toBeVisible()
 })
+
+test('board: "Free only" shows just the free chargers and survives a reload', async ({ page }) => {
+  await page.goto('./')
+  const toggle = page.getByRole('switch', { name: 'Free only' })
+
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  await expect.poll(() => cardNames(page)).toEqual(['Parkhaus 1.OG 01', 'Aletschhorn 1'])
+  // The chips still count the whole board
+  await expect(chip(page, 'All')).toContainText('2/4')
+
+  await page.reload()
+  await expect.poll(() => cardNames(page)).toEqual(['Parkhaus 1.OG 01', 'Aletschhorn 1'])
+
+  await chip(page, 'Weisshorn').click()
+  await expect(page.getByText('No free chargers right now.')).toBeVisible()
+
+  await page.getByRole('switch', { name: 'Free only' }).click()
+  await expect.poll(() => cardNames(page)).toEqual(['Weisshorn 1'])
+})

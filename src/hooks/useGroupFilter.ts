@@ -3,6 +3,7 @@ import { readStringArray } from '../storage'
 
 const FILTER_KEY = 'parking-app:groupFilter'
 const HIDDEN_KEY = 'parking-app:hiddenGroups'
+const FREE_ONLY_KEY = 'parking-app:freeOnly'
 const DEFAULT_HIDDEN = ['Besucherplatz', 'Parkhaus EG']
 
 function readStoredFilter(): string {
@@ -10,12 +11,14 @@ function readStoredFilter(): string {
 }
 
 /**
- * Which group the board is filtered to ('' = All) and which groups are hidden
- * in settings, both persisted in localStorage.
+ * Which group the board is filtered to ('' = All), which groups are hidden in
+ * settings, and whether only free stations are shown — all persisted in
+ * localStorage.
  */
 export function useGroupFilter() {
   const [activeGroup, setActiveGroup] = useState<string>(() => readStoredFilter())
   const [hiddenGroups, setHiddenGroups] = useState<string[]>(() => readStringArray(HIDDEN_KEY, DEFAULT_HIDDEN))
+  const [freeOnly, setFreeOnly] = useState<boolean>(() => localStorage.getItem(FREE_ONLY_KEY) === '1')
 
   useEffect(() => {
     localStorage.setItem(FILTER_KEY, activeGroup)
@@ -24,6 +27,10 @@ export function useGroupFilter() {
   useEffect(() => {
     localStorage.setItem(HIDDEN_KEY, JSON.stringify(hiddenGroups))
   }, [hiddenGroups])
+
+  useEffect(() => {
+    localStorage.setItem(FREE_ONLY_KEY, freeOnly ? '1' : '0')
+  }, [freeOnly])
 
   // If the currently filtered group gets hidden, fall back to "All"
   useEffect(() => {
@@ -41,5 +48,7 @@ export function useGroupFilter() {
     [],
   )
 
-  return { activeGroup, hiddenGroups, showAll, toggleGroup, toggleHidden }
+  const toggleFreeOnly = useCallback(() => setFreeOnly((prev) => !prev), [])
+
+  return { activeGroup, hiddenGroups, freeOnly, showAll, toggleGroup, toggleHidden, toggleFreeOnly }
 }

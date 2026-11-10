@@ -11,7 +11,10 @@ export type BoardSummary = {
   groups: string[]
   /** The groups that are not hidden — one filter chip each. */
   visibleGroups: string[]
-  /** The cards to draw: not hidden, and in the active group if there is one. */
+  /**
+   * The cards to draw: not hidden, in the active group if there is one, and
+   * free if `freeOnly` is on.
+   */
   stations: StationView[]
   /** Per visible group, for its chip. */
   stats: Record<string, GroupStats>
@@ -26,12 +29,15 @@ const NONE: GroupStats = { free: 0, busy: 0, total: 0 }
 /**
  * `activeGroup` '' means All. Ungrouped stations are always visible; hiding
  * applies per group. A station in `refs` with no view yet is left out.
+ * `freeOnly` narrows the cards only: the chips and header still count every
+ * visible station, so they keep saying how busy the place is.
  */
 export function summariseBoard(
   refs: StationRef[],
   views: Record<string, StationView>,
   hiddenGroups: string[],
   activeGroup: string,
+  freeOnly = false,
 ): BoardSummary {
   const groups = Array.from(new Set(refs.map((r) => r.group).filter((g): g is string => Boolean(g)))).sort()
   const visibleGroups = groups.filter((g) => !hiddenGroups.includes(g))
@@ -55,10 +61,12 @@ export function summariseBoard(
     }
   }
 
+  const inGroup = activeGroup ? visible.filter((v) => v.ref.group === activeGroup) : visible
+
   return {
     groups,
     visibleGroups,
-    stations: activeGroup ? visible.filter((v) => v.ref.group === activeGroup) : visible,
+    stations: freeOnly ? inGroup.filter((v) => stateToStatus(v.data?.State) === STATUS.AVAILABLE) : inGroup,
     stats,
     all,
     // A stored filter naming a group that no longer exists matches no station

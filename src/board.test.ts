@@ -71,4 +71,16 @@ describe('summariseBoard', () => {
     expect(ids(b.stations)).not.toContain(ref(2).id)
     expect(b.stats.Parkhaus).toEqual({ free: 0, busy: 1, total: 1 })
   })
+
+  it('freeOnly narrows the cards but not the counts', () => {
+    const b = summariseBoard(refs, views, [], '', true)
+    expect(ids(b.stations)).toEqual([ref(1).id, ref(2).id, ref(7).id])
+    expect(b.all).toEqual({ free: 3, busy: 2, total: 6 })
+    expect(b.stats.Weisshorn).toEqual({ free: 0, busy: 1, total: 2 })
+  })
+
+  it('freeOnly combines with the active group', () => {
+    expect(ids(summariseBoard(refs, views, [], 'Parkhaus', true).stations)).toEqual([ref(2).id])
+    expect(summariseBoard(refs, views, [], 'Weisshorn', true).stations).toEqual([])
+  })
 })
