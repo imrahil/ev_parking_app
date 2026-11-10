@@ -42,7 +42,7 @@ test('history: the board works without it, just with no charts', async ({ page }
   await fakeWorker(page, undefined, { history: null })
   await page.goto('./')
 
-  await expect.poll(() => cardNames(page)).toHaveLength(4)
+  await expect.poll(() => cardNames(page)).toHaveLength(6)
   await expect(card(page, 'Weisshorn 1')).toContainText('Occupied')
   await expect(page.locator('main').getByRole('img')).toHaveCount(0)
 })

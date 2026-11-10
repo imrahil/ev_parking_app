@@ -6,7 +6,7 @@ import { useTheme } from './hooks/useTheme'
 import { useGroupFilter } from './hooks/useGroupFilter'
 import { Header } from './components/Header'
 import { StationCard } from './components/StationCard'
-import { SettingsDialog } from './components/SettingsDialog'
+import { NotificationHint } from './components/NotificationHint'
 import { summariseBoard } from './board'
 
 // The worker refreshes from ecarup every 10 min; polling its cache every
@@ -14,8 +14,7 @@ import { summariseBoard } from './board'
 const REFRESH_MS = 60_000
 
 export function App() {
-  const { activeGroup, hiddenGroups, showAll, toggleGroup, toggleHidden } = useGroupFilter()
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const { activeGroup, freeOnly, showAll, toggleGroup, toggleFreeOnly } = useGroupFilter()
 
   const { refs, refsError, views } = useStations(REFRESH_MS)
   const { theme, cycleTheme } = useTheme()
@@ -31,8 +30,8 @@ export function App() {
   }, [])
 
   const board = useMemo(
-    () => summariseBoard(refs, views, hiddenGroups, activeGroup),
-    [refs, views, hiddenGroups, activeGroup],
+    () => summariseBoard(refs, views, activeGroup, freeOnly),
+    [refs, views, activeGroup, freeOnly],
   )
 
   return (
@@ -42,9 +41,10 @@ export function App() {
         activeGroup={activeGroup}
         onShowAll={showAll}
         onToggleGroup={toggleGroup}
+        freeOnly={freeOnly}
+        onToggleFreeOnly={toggleFreeOnly}
         theme={theme}
         onCycleTheme={cycleTheme}
-        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
@@ -53,9 +53,16 @@ export function App() {
             Failed to load station data: {refsError}
           </div>
         )}
+        {push.error && (
+          <div className="mb-4 rounded-xl bg-busy/10 ring-1 ring-busy/30 px-4 py-3 text-busy text-sm">
+            ⚠ {push.error}
+          </div>
+        )}
         {board.stations.length === 0 && !refsError && (
           <div className="text-center text-navy/50 dark:text-white/50 text-sm py-12">
-            No stations match the current filter.
+            {freeOnly && board.counts.total > 0
+              ? 'No free chargers right now.'
+              : 'No stations match the current filter.'}
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -79,22 +86,12 @@ export function App() {
           ))}
         </div>
         <footer className="mt-10 text-center text-xs text-navy/50 dark:text-white/40">
+          <NotificationHint state={push.state} />
           Data: ecarup.com · updates every 10 min
           <br />
           © 2026 Jarek Szczepanski
         </footer>
       </main>
-
-      <SettingsDialog
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        groups={board.groups}
-        hidden={hiddenGroups}
-        onToggle={toggleHidden}
-        pushState={push.state}
-        watchCount={push.watches.length}
-        pushError={push.error}
-      />
     </div>
   )
 }

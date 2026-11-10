@@ -1,7 +1,7 @@
 import type { BoardSummary } from '../board'
 import type { Theme } from '../hooks/useTheme'
-import { OUTLINE_PILL } from '../consts/consts'
 import { FilterChip } from './FilterChip'
+import { FreeOnlyToggle } from './FreeOnlyToggle'
 import { ThemeToggle } from './ThemeToggle'
 
 export function Header({
@@ -9,17 +9,19 @@ export function Header({
   activeGroup,
   onShowAll,
   onToggleGroup,
+  freeOnly,
+  onToggleFreeOnly,
   theme,
   onCycleTheme,
-  onOpenSettings,
 }: {
   board: BoardSummary
   activeGroup: string
   onShowAll: () => void
   onToggleGroup: (group: string) => void
+  freeOnly: boolean
+  onToggleFreeOnly: () => void
   theme: Theme
   onCycleTheme: () => void
-  onOpenSettings: () => void
 }) {
   return (
     <header className="sm:sticky top-0 z-10 backdrop-blur bg-paper/90 dark:bg-ink/90 border-b border-navy/10 dark:border-white/10">
@@ -42,20 +44,12 @@ export function Header({
               <span className="text-busy">{board.counts.busy} Busy</span>
             </div>
             <ThemeToggle theme={theme} onCycle={onCycleTheme} />
-            <button
-              onClick={onOpenSettings}
-              title="Settings"
-              aria-label="Settings"
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold transition ${OUTLINE_PILL}`}
-            >
-              <span aria-hidden>⚙</span>
-            </button>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-1.5">
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
           <FilterChip active={!activeGroup} onClick={onShowAll} label="All" stats={board.all} />
-          {board.visibleGroups.map((g) => (
+          {board.groups.map((g) => (
             <FilterChip
               key={g}
               active={activeGroup === g}
@@ -64,6 +58,7 @@ export function Header({
               stats={board.stats[g]}
             />
           ))}
+          <FreeOnlyToggle on={freeOnly} onToggle={onToggleFreeOnly} />
         </div>
       </div>
     </header>
