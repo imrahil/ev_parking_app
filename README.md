@@ -23,7 +23,8 @@ server-side and the app reads one cached aggregate. The same worker keeps a
   the tab / PWA comes back into view. There are no manual refresh controls.
 - **Group filters** — chips per charger area (`group` in `stations.json`) with
   a free/total badge; the active filter is remembered.
-- **Settings** — hide charger groups you don't care about (⚙ in the header).
+- **Free only** — a switch next to the chips that shows just the chargers that
+  are free right now; the badges keep counting everything. Remembered too.
 - **Themes** — auto / light / dark, applied before first paint so there's no
   flash of the wrong theme.
 - **Per-connector chips** — stations with more than one connector show each
@@ -154,7 +155,7 @@ Edit `public/stations.json` — an array of `{ id, name, group? }`:
 ```
 
 `name` is only a fallback label; the live `Name` from the API wins once a fetch
-succeeds. `group` drives the filter chips and the settings dialog.
+succeeds. `group` drives the filter chips.
 
 ## Persisted settings
 
@@ -164,7 +165,7 @@ All in `localStorage`:
 | --------------------------- | ------------------------------------------------------ |
 | `parking-app:theme`         | `light` / `dark` (absent = follow the OS)              |
 | `parking-app:groupFilter`   | the active group chip (`''` = All)                     |
-| `parking-app:hiddenGroups`  | JSON array of groups hidden via Settings               |
+| `parking-app:freeOnly`      | `1` / `0` — the "Free only" switch                     |
 | `parking-app:watches`       | station ids with an armed notification (server is truth) |
 
-Default hidden groups: `Besucherplatz`, `Parkhaus EG`.
+Every group is always shown; there is no way to hide one.

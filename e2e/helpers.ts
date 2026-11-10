@@ -34,10 +34,7 @@ export function historyFor(board: Board, now = Date.now()): PowerHistory {
   return { t, p: series((busy) => (busy ? CHARGING_KW : 0)), s: series(Number) }
 }
 
-/**
- * The real stations.json groups. Besucherplatz and Parkhaus EG are hidden by
- * default, so a fresh visit shows Parkhaus 1.OG, Weisshorn and Aletschhorn.
- */
+/** The real stations.json groups. */
 export const BOARD = [
   station(1, 'Besucherplatz', FREE, 'Besucherparkplatz 1'),
   station(2, 'Parkhaus 1.OG', FREE, 'Parkhaus 1.OG 01'),

@@ -93,9 +93,10 @@ The pieces that need reading together:
 - **`src/api.ts`** — `fetchAllStations()` (worker), `fetchStation()` (direct),
   `loadStations()` (stations.json), and `stateToStatus()`.
 - **`src/App.tsx`** — wires the hooks to the header, the card grid and the
-  settings dialog. What the board shows (visible groups, filtered cards,
-  free/busy counts) is worked out by the pure `summariseBoard()` in
-  `src/board.ts`.
+  notification hint in the footer. What the board shows (group chips,
+  filtered cards, free/busy counts) is worked out by the pure
+  `summariseBoard()` in `src/board.ts`. Every group is always shown: hiding
+  groups (and the settings dialog that did it) was removed on purpose.
 - **`src/push.ts`** — browser push plumbing (capability detection, service
   worker subscription); `src/hooks/usePushWatch.ts` holds the state on top.
 

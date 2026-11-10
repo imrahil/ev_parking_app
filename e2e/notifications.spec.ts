@@ -26,10 +26,6 @@ test('notify: arming and disarming a watch goes through the worker', async ({ pa
     body: { stationId: uuid(5), subscription: { endpoint: 'https://fcm.googleapis.com/fcm/send/e2e-device' } },
   })
 
-  await page.getByRole('button', { name: 'Settings' }).click()
-  await expect(page.getByText('1 charger being watched')).toBeVisible()
-  await page.keyboard.press('Escape')
-
   await bell.click()
   await expect(bell).toHaveText(/Notify me/)
   expect(worker.requests.find((r) => r.method === 'DELETE')).toMatchObject({
@@ -58,6 +54,5 @@ test('notify: denying permission removes the bells and explains how to undo it',
 
   await expect(page.getByRole('button', { name: /Notify me/ })).toHaveCount(0)
   expect(worker.requests.some((r) => r.method === 'POST')).toBe(false)
-  await page.getByRole('button', { name: 'Settings' }).click()
   await expect(page.getByText(/Notifications are blocked/)).toBeVisible()
 })
