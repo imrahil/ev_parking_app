@@ -37,5 +37,14 @@
   { "id": "f0d477af-f0ff-fb1d-4a07-96180bd88d9f", "name": "PP Aletschhorn 02", "group": "Aletschhorn" },
   { "id": "3ff33933-27ab-761c-24ec-89c4652e0f3e", "name": "PP Aletschhorn 03", "group": "Aletschhorn" },
   { "id": "40dc7d64-e0e0-a9f7-2d0e-d8ed6ef00d94", "name": "PP Aletschhorn 04", "group": "Aletschhorn" },
-  { "id": "8032e6cf-264c-7b47-61dc-df0e3a145b6a", "name": "Schwarzhorn 04 Nord", "group": "Schwarzhorn" }
+  { "id": "445aaa83-bae3-dae5-c17a-ad7bfa3b71a7", "name": "Schwarzhorn 01 Nord", "group": "Schwarzhorn" },
+  { "id": "d6a5b468-e6e3-189c-f3f7-0382993d7c97", "name": "Schwarzhorn 02 Nord", "group": "Schwarzhorn" },
+  { "id": "cefe7418-1ba8-ddeb-9a21-6bd064262f22", "name": "Schwarzhorn 03 Nord", "group": "Schwarzhorn" },
+  { "id": "8032e6cf-264c-7b47-61dc-df0e3a145b6a", "name": "Schwarzhorn 04 Nord", "group": "Schwarzhorn" },
+  { "id": "7639dc03-0d4c-8a5e-020d-8081c69d0757", "name": "Schwarzhorn 05 Nord", "group": "Schwarzhorn" },
+  { "id": "72322bf0-d87e-8bf8-1dad-f602faf87ff8", "name": "Schwarzhorn 06 Nord", "group": "Schwarzhorn" },
+  { "id": "17640c1d-3b01-2fd2-86ff-b7a7b8a211cb", "name": "Schwarzhorn 07 Nord", "group": "Schwarzhorn" },
+  { "id": "15cf750a-d2d2-3912-8805-5d7fa80728bf", "name": "Schwarzhorn 08 Nord", "group": "Schwarzhorn" },
+  { "id": "14d01fef-110f-53cc-0f73-08a3c3a9c6fa", "name": "Schwarzhorn 11 Ost", "group": "Schwarzhorn" },
+  { "id": "926aeb93-8811-6e9e-b655-64d3325fbb58", "name": "Schwarzhorn 12 Ost", "group": "Schwarzhorn" }
 ]
